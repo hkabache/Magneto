@@ -1,0 +1,33 @@
+name: Magneto
+options:
+  bundleIdPrefix: com.hugok94
+  createIntermediateGroups: true
+  deploymentTarget:
+    macOS: "26.0"
+packages:
+  KeyboardShortcuts:
+    url: https://github.com/sindresorhus/KeyboardShortcuts
+    from: 3.0.0
+targets:
+  Magneto:
+    type: application
+    platform: macOS
+    sources:
+      - Magneto
+    dependencies:
+      - package: KeyboardShortcuts
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.hugok94.magneto
+        PRODUCT_NAME: Magneto
+        MARKETING_VERSION: "0.1.0"
+        CURRENT_PROJECT_VERSION: "1"
+        SWIFT_VERSION: "5.0"
+        CODE_SIGN_STYLE: Manual
+        CODE_SIGN_IDENTITY: "-"
+        ENABLE_HARDENED_RUNTIME: false
+        GENERATE_INFOPLIST_FILE: true
+        INFOPLIST_KEY_LSUIElement: true
+        INFOPLIST_KEY_CFBundleDisplayName: Magneto
+        INFOPLIST_KEY_NSMicrophoneUsageDescription: "Magneto enregistre le micro pendant la dictée."
+        INFOPLIST_KEY_NSSpeechRecognitionUsageDescription: "Magneto peut transcrire localement via la reconnaissance vocale d'Apple."
