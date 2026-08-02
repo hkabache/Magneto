@@ -19,3 +19,8 @@ rm -rf "$DERIVED/Build/Products/Release/Magneto.app" "$DERIVED/Build/Products/Re
 
 open /Applications/Magneto.app
 echo "Magneto installé dans /Applications et lancé."
+
+# One-line diagnosis if the permissions ever start dropping again: a requirement
+# on cdhash means the signing certificate was missing and the build fell back to
+# ad-hoc, so macOS will revoke the grants at the next rebuild.
+codesign -d -r- /Applications/Magneto.app 2>&1 | sed -n 's/^designated => /signature : /p'

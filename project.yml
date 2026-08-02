@@ -21,10 +21,14 @@ targets:
         PRODUCT_BUNDLE_IDENTIFIER: com.hugok94.magneto
         PRODUCT_NAME: Magneto
         MARKETING_VERSION: "0.1.0"
-        CURRENT_PROJECT_VERSION: "1"
+        CURRENT_PROJECT_VERSION: "2"
         SWIFT_VERSION: "5.0"
         CODE_SIGN_STYLE: Manual
-        CODE_SIGN_IDENTITY: "-"
+        # Self-signed certificate from the login keychain. TCC stores a code
+        # requirement, not a path: an ad-hoc signature pins it to the binary's
+        # cdhash, so every rebuild revoked the microphone and accessibility grants.
+        # Signing with an identity anchors the requirement on the certificate.
+        CODE_SIGN_IDENTITY: "Magneto Code Signing"
         ENABLE_HARDENED_RUNTIME: false
         GENERATE_INFOPLIST_FILE: true
         INFOPLIST_KEY_LSUIElement: true
