@@ -47,4 +47,10 @@ Au premier lancement, Magneto importe automatiquement le vocabulaire et les clé
 - **Microphone** : demandé au premier enregistrement
 - **Accessibilité** : nécessaire pour le collage automatique (Cmd+V synthétique). Sans elle, le texte est copié dans le presse-papiers et un message invite à coller manuellement.
 
-Note : l'app est signée en ad-hoc. macOS redemande les permissions après chaque rebuild. Pour les conserver, installer un certificat Apple Development (gratuit) via Xcode et remplacer `CODE_SIGN_IDENTITY` dans `project.yml`.
+Ces autorisations survivent aux rebuilds, ce qui suppose un certificat en place.
+
+TCC ne mémorise pas « cette app est autorisée » mais une exigence de signature, revérifiée à chaque appel. Signée en ad-hoc, l'exigence porte sur le `cdhash` du binaire : elle est invalidée à chaque compilation, et macOS refuse alors que la case reste cochée dans les Réglages Système. Magneto est donc signée avec un certificat auto-signé, ce qui déplace l'exigence sur le certificat.
+
+Pour recréer ce certificat sur une autre machine : Trousseau d'accès → Assistant de certification → Créer un certificat, nom `Magneto Code Signing`, type d'identité « Racine auto-signée », type de certificat « Signature de code ». Aucun compte développeur nécessaire, et aucun réglage de confiance à poser, `codesign` accepte la racine auto-signée telle quelle.
+
+`install.sh` affiche l'exigence obtenue en fin d'installation. Si `cdhash` y apparaît, le certificat est absent et les autorisations sauteront au prochain build.
