@@ -44,6 +44,12 @@ final class AppSettings: ObservableObject {
     @Published var overlayPosition: OverlayPosition {
         didSet { defaults.set(overlayPosition.rawValue, forKey: "overlayPosition") }
     }
+    @Published var capsLockNoDelay: Bool {
+        didSet {
+            defaults.set(capsLockNoDelay, forKey: "capsLockNoDelay")
+            CapsLockDelay.apply(noDelay: capsLockNoDelay)
+        }
+    }
     @Published var postProcessEnabled: Bool {
         didSet { defaults.set(postProcessEnabled, forKey: "postProcessEnabled") }
     }
@@ -62,13 +68,36 @@ final class AppSettings: ObservableObject {
 
     let language = "fr"
 
+    /// Names that are the same for every user, and that dictating about Magneto
+    /// itself keeps getting wrong. Kept out of the Vocabulaire tab: nobody should
+    /// have to type them, and nobody has a reason to remove them.
+    private static let builtInWords = [
+        "Magneto", "ElevenLabs", "Voxtral", "Mistral", "Anthropic", "Claude", "Haiku",
+    ]
+
+    /// User terms first: the keyterms list is capped, and someone's own words matter
+    /// more than the engine names if that cap is ever reached.
+    var vocabulary: [String] {
+        var seen = Set<String>()
+        return (customWords + Self.builtInWords).filter { seen.insert($0.lowercased()).inserted }
+    }
+
     private init() {
         overlayPosition = OverlayPosition(rawValue: defaults.string(forKey: "overlayPosition") ?? "") ?? .bottom
+        capsLockNoDelay = defaults.bool(forKey: "capsLockNoDelay")
         postProcessEnabled = defaults.object(forKey: "postProcessEnabled") as? Bool ?? true
         postProcessProvider = PostProcessProvider(rawValue: defaults.string(forKey: "postProcessProvider") ?? "") ?? .mistral
         aggressiveFillers = defaults.bool(forKey: "aggressiveFillers")
         frenchTypography = defaults.object(forKey: "frenchTypography") as? Bool ?? true
         customWords = defaults.stringArray(forKey: "customWords") ?? []
+
+        // The HID override dies with the login session and `didSet` never fires from
+        // `init`, so an enabled option has to be re-applied here at every launch.
+        // Left untouched when disabled: no reason to write a system property that
+        // was never asked for.
+        if capsLockNoDelay {
+            CapsLockDelay.apply(noDelay: true)
+        }
     }
 
     func addCustomWord(_ word: String) {

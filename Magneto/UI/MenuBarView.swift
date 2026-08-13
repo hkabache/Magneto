@@ -26,6 +26,8 @@ struct MenuBarView: View {
             }
         }
         .frame(width: 380)
+        // Closing the popover only hides it, so the tab has to be reset by hand.
+        .onAppear { tab = .general }
     }
 
     private var mainContent: some View {
@@ -53,14 +55,12 @@ struct MenuBarView: View {
             .labelsHidden()
             .padding(.horizontal, 16)
             .padding(.bottom, 6)
-            Group {
-                switch tab {
-                case .general: GeneralTab()
-                case .vocabulary: VocabularyTab()
-                case .keys: KeysTab()
-                }
+            // Each tab sets its own height: a form must never scroll to show its rows.
+            switch tab {
+            case .general: GeneralTab()
+            case .vocabulary: VocabularyTab()
+            case .keys: KeysTab()
             }
-            .frame(height: 290)
             Divider()
             footer
                 .padding(.horizontal, 16)
@@ -272,6 +272,8 @@ private struct GeneralTab: View {
     @EnvironmentObject private var app: AppState
     @EnvironmentObject private var settings: AppSettings
     @State private var launchAtLogin = SMAppService.mainApp.status == .enabled
+    /// Read on appear, not on every redraw: keys are edited from another tab.
+    @State private var providersWithKey: [PostProcessProvider] = []
 
     var body: some View {
         Form {
@@ -283,6 +285,10 @@ private struct GeneralTab: View {
                     ForEach(OverlayPosition.allCases) { position in
                         Text(position.label).tag(position)
                     }
+                }
+                HelpRow("Caps Lock sans délai", help: "Active Caps Lock dès l'appui, sans attendre") {
+                    Toggle("", isOn: $settings.capsLockNoDelay)
+                        .labelsHidden()
                 }
                 Toggle("Lancer au démarrage", isOn: $launchAtLogin)
                     .onChange(of: launchAtLogin) { _, enabled in
@@ -298,20 +304,57 @@ private struct GeneralTab: View {
                     }
             }
 
-            Section("Nettoyage") {
-                Toggle("Nettoyer avec l'IA", isOn: $settings.postProcessEnabled)
-                if settings.postProcessEnabled {
+            Section {
+                // Shown off, not ticked-but-greyed: a ticked box that produces
+                // nothing is what made this option misleading. The stored choice
+                // is kept, so adding a key brings it back as it was.
+                HelpRow("Activer", help: "Retire les hésitations, corrige ponctuation et nombres") {
+                    Toggle(
+                        "",
+                        isOn: providersWithKey.isEmpty ? Binding.constant(false) : $settings.postProcessEnabled
+                    )
+                    .labelsHidden()
+                }
+                .disabled(providersWithKey.isEmpty)
+                if !providersWithKey.isEmpty, settings.postProcessEnabled {
+                    // Every model stays listed, so the second one advertises itself
+                    // as available once its key is filled in.
                     Picker("Modèle", selection: $settings.postProcessProvider) {
                         ForEach(PostProcessProvider.allCases) { provider in
-                            Text(provider.label).tag(provider)
+                            Text(providersWithKey.contains(provider) ? provider.label : "\(provider.label) (clé requise)")
+                                .disabled(!providersWithKey.contains(provider))
+                                .tag(provider)
                         }
                     }
-                    HelpRow("Retirer les tics de langage", help: "Retire aussi du coup, en fait, genre et voilà") {
+                    // Enforces the greyed rows: a keyless model never sticks, even
+                    // if the popup lets it be picked.
+                    .onChange(of: settings.postProcessProvider) { previous, selected in
+                        if !providersWithKey.contains(selected) {
+                            settings.postProcessProvider = previous
+                        }
+                    }
+                    HelpRow("Retirer les connecteurs", help: "Retire les connecteurs creux : du coup, en fait, genre, voilà") {
                         Toggle("", isOn: $settings.aggressiveFillers)
                             .labelsHidden()
                     }
                 }
-                Toggle("Typographie française", isOn: $settings.frenchTypography)
+            } header: {
+                Text("Nettoyage par IA")
+            } footer: {
+                if providersWithKey.isEmpty {
+                    Text("Demande une clé Mistral ou Anthropic, à saisir dans l'onglet Clés API.")
+                }
+            }
+
+            // Its own section: it runs on rules, always, with or without a key, and
+            // grouping it under the IA suggested a dependency that does not exist.
+            Section {
+                HelpRow("Typographie française", help: "Écrit « Tu viens ? » plutôt que « Tu viens? »") {
+                    Toggle("", isOn: $settings.frenchTypography)
+                        .labelsHidden()
+                }
+            } header: {
+                Text("Typographie")
             }
 
             if !app.accessibilityGranted {
@@ -325,9 +368,18 @@ private struct GeneralTab: View {
             }
         }
         .formStyle(.grouped)
+        // A grouped form is scrollable, so it takes every point it is offered
+        // instead of stopping at its rows. This pins it to their height.
+        .fixedSize(horizontal: false, vertical: true)
         .helpTagOverlay()
         .onAppear {
             launchAtLogin = SMAppService.mainApp.status == .enabled
+            providersWithKey = PostProcessProvider.allCases.filter { Keychain.exists($0.keychainAccount) }
+            // A key removed after being selected would leave the picker on a model
+            // that silently cannot run.
+            if let fallback = providersWithKey.first, !providersWithKey.contains(settings.postProcessProvider) {
+                settings.postProcessProvider = fallback
+            }
         }
     }
 }
@@ -339,10 +391,6 @@ private struct VocabularyTab: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("Ces termes sont transmis au moteur de transcription et servent de référence orthographique au nettoyage.")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-                .fixedSize(horizontal: false, vertical: true)
             HStack(spacing: 6) {
                 TextField("Ajouter un terme", text: $newWord)
                     .textFieldStyle(.roundedBorder)
@@ -374,9 +422,19 @@ private struct VocabularyTab: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
+            // Placed under the controls it describes, where the grouped forms of the
+            // other tabs put their own explanations.
+            Text("Ces termes sont transmis au moteur de transcription et servent de référence orthographique au nettoyage.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+                .padding(.top, 4)
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 10)
+        // The list grows with the vocabulary, so this tab is the one place that
+        // needs a set height rather than its content's.
+        .frame(height: 290)
     }
 
     private func add() {
@@ -438,14 +496,37 @@ private struct KeysTab: View {
     var body: some View {
         Form {
             Section {
-                KeyField(label: "ElevenLabs", account: Keychain.elevenLabs)
-                KeyField(label: "Mistral", account: Keychain.mistral)
-                KeyField(label: "Anthropic", account: Keychain.anthropic)
+                KeyField(
+                    label: "ElevenLabs",
+                    help: "Scribe v2, moteur principal",
+                    account: Keychain.elevenLabs
+                )
+                KeyField(
+                    label: "Mistral",
+                    help: "Voxtral en secours, sert aussi au nettoyage",
+                    account: Keychain.mistral
+                )
+            } header: {
+                Text("Transcription")
             } footer: {
-                Text("Stockées dans le trousseau macOS. La transcription essaie ElevenLabs, puis Voxtral, puis le moteur Apple hors ligne.")
+                Text("Sans aucune clé, le moteur Apple hors ligne prend le relais.")
+            }
+
+            Section {
+                KeyField(
+                    label: "Anthropic",
+                    help: "Claude Haiku, alternative à Mistral Small",
+                    account: Keychain.anthropic
+                )
+            } header: {
+                Text("Nettoyage")
+            } footer: {
+                Text("Clés stockées dans le trousseau macOS.")
             }
         }
         .formStyle(.grouped)
+        .fixedSize(horizontal: false, vertical: true)
+        .helpTagOverlay()
     }
 }
 
@@ -453,6 +534,7 @@ private struct KeysTab: View {
 /// when the field is validated or loses focus.
 private struct KeyField: View {
     let label: String
+    let help: String
     let account: String
 
     @State private var value = ""
@@ -460,7 +542,7 @@ private struct KeyField: View {
     @FocusState private var focused: Bool
 
     var body: some View {
-        LabeledContent(label) {
+        LabeledContent {
             HStack(spacing: 8) {
                 SecureField(
                     label,
@@ -479,6 +561,11 @@ private struct KeyField: View {
                     .foregroundStyle(present ? Color.green : Color.secondary)
                     .help(present ? "Clé enregistrée" : "Aucune clé enregistrée")
             }
+        } label: {
+            HStack(spacing: 5) {
+                Text(label)
+                HelpTag(help)
+            }
         }
         .onAppear {
             present = Keychain.exists(account)
@@ -488,7 +575,7 @@ private struct KeyField: View {
     private func save() {
         let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return }
-        Keychain.set(trimmed, account: account)
+        Keychain.set(trimmed, account: account, label: label)
         value = ""
         present = Keychain.exists(account)
     }
