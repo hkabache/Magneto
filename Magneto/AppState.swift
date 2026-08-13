@@ -31,7 +31,6 @@ final class AppState: ObservableObject {
 
     private init() {
         history = UserDefaults.standard.stringArray(forKey: "history") ?? []
-        HandyMigration.runIfNeeded(settings: settings)
         KeyboardShortcuts.onKeyDown(for: .toggleDictation) { [weak self] in
             self?.toggle()
         }
@@ -187,7 +186,7 @@ final class AppState: ObservableObject {
             overlay.hide()
         }
 
-        let vocabulary = settings.customWords
+        let vocabulary = settings.vocabulary
         let result = await TranscriptionService.transcribe(
             audioURL: url,
             language: settings.language,

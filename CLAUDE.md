@@ -41,7 +41,7 @@ Magneto/
   PostProcessing/LLMPass.swift     LLM cleanup pass, strict "correct, never rewrite" prompt
   Output/Paster.swift              transient pasteboard + CGEvent Cmd+V + clipboard restore
   UI/                              MenuBarView (popover with tabs), OverlayPanel (NSPanel pill)
-  Support/                         AppSettings, Keychain, Permissions, Hotkeys, HandyMigration
+  Support/                         AppSettings, Keychain, Permissions, Hotkeys, CapsLockDelay
 ```
 
 ## Conventions

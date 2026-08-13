@@ -36,11 +36,15 @@ Les deux scripts compilent dans `~/Library/Developer/Xcode/DerivedData/Magneto` 
 
 Tout se passe dans le popover de la barre de menus :
 
-- **Général** : raccourci, position de la fenêtre d'enregistrement, post-traitement IA, typographie française, lancement au démarrage
-- **Vocabulaire** : mots et termes techniques envoyés au moteur de transcription (keyterms) et au LLM de nettoyage
-- **Clés API** : ElevenLabs, Mistral, Anthropic (stockées dans le trousseau macOS)
+- **Général** : raccourci, position de la fenêtre d'enregistrement, délai Caps Lock, lancement au démarrage, post-traitement IA, typographie française
+- **Vocabulaire** : mots et termes techniques envoyés au moteur de transcription (keyterms) et au LLM de nettoyage. À cette liste s'ajoute un vocabulaire intégré, non affiché et non modifiable, qui couvre les noms propres du produit lui-même (Magneto, ElevenLabs, Voxtral, Mistral, Anthropic, Claude) pour qu'on puisse parler de l'app à l'app sans rien configurer
+- **Clés API** : groupées par usage. Transcription (ElevenLabs, Mistral) et nettoyage (Anthropic, plus la clé Mistral qui sert aux deux)
 
-Au premier lancement, Magneto importe automatiquement le vocabulaire et les clés Mistral/Anthropic depuis l'installation Handy existante si elle est présente.
+« Caps Lock sans délai » supprime le délai d'activation d'environ 100 ms que macOS impose sur la touche, et qui fait qu'un appui rapide ne l'active pas. Le réglage passe par `hidutil` et vaut pour tout le système, pas seulement pour Magneto. L'override ne survit pas à une déconnexion, donc Magneto le repose à chaque lancement tant que l'option est active. `hidutil` sait écrire une propriété mais pas l'effacer : désactiver l'option réécrit le délai d'origine au lieu de retirer l'override.
+
+Les clés vivent dans le trousseau macOS, sous le service `com.hugok94.magneto` et les comptes `elevenlabs`, `mistral`, `anthropic`. Elles ne sont donc pas dans le bundle : supprimer l'app ne les efface pas, et une réinstallation les retrouve.
+
+Sans aucune clé, Magneto fonctionne quand même, avec le seul moteur Apple hors ligne et le nettoyage par règles. Le nettoyage par IA est alors désactivé dans l'onglet Général, puisqu'il demande une clé Mistral ou Anthropic.
 
 ## Permissions
 

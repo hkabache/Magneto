@@ -40,7 +40,7 @@ enum Keychain {
         return SecItemCopyMatching(query as CFDictionary, &item) == errSecSuccess
     }
 
-    static func set(_ value: String, account: String) {
+    static func set(_ value: String, account: String, label: String) {
         let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else {
             delete(account)
@@ -51,12 +51,16 @@ enum Keychain {
             kSecAttrService as String: service,
             kSecAttrAccount as String: account,
         ]
-        let data = Data(trimmed.utf8)
-        let update: [String: Any] = [kSecValueData as String: data]
-        let status = SecItemUpdate(base as CFDictionary, update as CFDictionary)
+        // Keychain Access falls back to the service name when no label is set, which
+        // lists the three keys as identical rows to anyone auditing what was stored.
+        let attributes: [String: Any] = [
+            kSecValueData as String: Data(trimmed.utf8),
+            kSecAttrLabel as String: "Magneto : clé \(label)",
+        ]
+        let status = SecItemUpdate(base as CFDictionary, attributes as CFDictionary)
         if status == errSecItemNotFound {
             var add = base
-            add[kSecValueData as String] = data
+            add.merge(attributes) { _, new in new }
             SecItemAdd(add as CFDictionary, nil)
         }
     }
