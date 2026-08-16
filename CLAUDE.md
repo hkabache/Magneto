@@ -4,7 +4,7 @@ This file provides guidance to Claude Code when working with this repository.
 
 ## Project
 
-Magneto is a minimal macOS menu bar dictation app, native Swift/SwiftUI, single target, one SPM dependency (KeyboardShortcuts). It replaces the Tauri-based Handy fork which lives untouched in `legacy/` (its own git repo, excluded from this one). Use `legacy/` as reference only, never modify it.
+Magneto is a minimal macOS menu bar dictation app, native Swift/SwiftUI, single target, one SPM dependency (KeyboardShortcuts). Distributed outside the App Store: Developer ID signed, notarized, published as a DMG by the release workflow on a `v*` tag.
 
 Pipeline: global hotkey toggle → AVAudioRecorder (wav 16kHz mono) → transcription chain (ElevenLabs Scribe v2 → Voxtral → Apple SpeechAnalyzer) → rule-based cleanup → optional LLM cleanup (Mistral Small / Claude Haiku) → paste at cursor via synthesized Cmd+V.
 
