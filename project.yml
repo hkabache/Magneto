@@ -20,16 +20,26 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.hkabache.magneto
         PRODUCT_NAME: Magneto
-        MARKETING_VERSION: "0.1.0"
+        MARKETING_VERSION: "0.2.0"
         CURRENT_PROJECT_VERSION: "2"
         SWIFT_VERSION: "5.0"
         CODE_SIGN_STYLE: Manual
-        # Self-signed certificate from the login keychain. TCC stores a code
-        # requirement, not a path: an ad-hoc signature pins it to the binary's
-        # cdhash, so every rebuild revoked the microphone and accessibility grants.
-        # Signing with an identity anchors the requirement on the certificate.
-        CODE_SIGN_IDENTITY: "Magneto Code Signing"
-        ENABLE_HARDENED_RUNTIME: false
+        # TCC stores a code requirement, not a path: an ad-hoc signature pins it to
+        # the binary's cdhash, so every rebuild revoked the microphone and
+        # accessibility grants. Signing with an identity anchors the requirement on
+        # the certificate instead.
+        CODE_SIGN_IDENTITY: "Developer ID Application"
+        # Public by nature: it is written into the signature of every binary shipped.
+        DEVELOPMENT_TEAM: AQ7LZD44WD
+        # Required by notarization, and it closes access to sensitive resources
+        # unless the entitlements file opens them.
+        ENABLE_HARDENED_RUNTIME: true
+        CODE_SIGN_ENTITLEMENTS: Magneto.entitlements
+        # Xcode otherwise adds com.apple.security.get-task-allow, which lets a
+        # debugger attach and which Apple rejects at notarization.
+        CODE_SIGN_INJECT_BASE_ENTITLEMENTS: NO
+        # Notarization demands a secure timestamp on the signature.
+        OTHER_CODE_SIGN_FLAGS: "--timestamp"
         GENERATE_INFOPLIST_FILE: true
         INFOPLIST_KEY_LSUIElement: true
         INFOPLIST_KEY_CFBundleDisplayName: Magneto
