@@ -2,7 +2,17 @@
 
 Application macOS de dictée vocale en barre de menus. Un raccourci (Option+Espace par défaut) démarre l'enregistrement, le même raccourci l'arrête, le texte transcrit et nettoyé est collé au curseur.
 
-Sans aucune clé API, elle fonctionne hors ligne avec le moteur de transcription d'Apple. Avec une clé, la qualité monte nettement.
+## Pourquoi
+
+**Gratuite, et elle le restera.** La licence interdit de la vendre.
+
+**Sans aucune clé, elle ne passe aucun appel réseau.** Le moteur de transcription d'Apple et le nettoyage par règles tournent entièrement sur ta machine. Une clé API n'est utile que pour monter en qualité, et reste facultative.
+
+**Tu paies l'usage, pas un abonnement.** Les services équivalents se facturent au mois, que tu dictes ou non. Ici tu règles directement le fournisseur, au tarif public et pour les secondes que tu as réellement dictées, sans intermédiaire qui prend sa marge au passage.
+
+**Tes clés, ton audio.** Les clés sont les tiennes et vivent dans le trousseau macOS. L'audio part de ton Mac vers le fournisseur que tu as choisi, et nulle part ailleurs : aucun serveur intermédiaire, aucun compte à créer, aucune télémétrie, aucun outil d'analytique. Les seules adresses que le code contacte sont `api.elevenlabs.io`, `api.mistral.ai` et `api.anthropic.com`, et le code est public pour que tu puisses le vérifier plutôt que me croire.
+
+C'est la différence de fond avec un service qui mutualise ses propres clés : au lieu d'ignorer ce que devient ta voix, tu contractes directement avec le fournisseur, tu lis ses conditions, et tu révoques ta clé quand tu veux.
 
 ## Fonctionnement
 
