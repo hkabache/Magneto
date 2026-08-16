@@ -15,6 +15,8 @@ permissions:
 jobs:
   release:
     runs-on: macos-26
+    # L'attente d'Apple domine la durée du job, la compilation ne prend qu'une minute.
+    timeout-minutes: 90
     permissions:
       contents: write
 
@@ -128,14 +130,24 @@ jobs:
           set -euo pipefail
           KEY="$RUNNER_TEMP/AuthKey.p8"
           printf '%s' "$APPSTORE_API_KEY_BASE64" | base64 --decode > "$KEY"
+          AUTH=(--key "$KEY" --key-id "$APPSTORE_API_KEY_ID" --issuer "$APPSTORE_API_ISSUER_ID")
 
-          xcrun notarytool submit "$DMG" \
-            --key "$KEY" \
-            --key-id "$APPSTORE_API_KEY_ID" \
-            --issuer "$APPSTORE_API_ISSUER_ID" \
-            --wait --timeout 30m
+          # Soumission et attente séparées, pour disposer de l'identifiant : sans lui,
+          # un échec ne laisse aucun moyen de demander à Apple ce qu'il reproche.
+          ID=$(xcrun notarytool submit "$DMG" "${AUTH[@]}" --output-format json \
+                 | python3 -c 'import json,sys; print(json.load(sys.stdin)["id"])')
+          echo "soumission : $ID"
+
+          # Apple annonce un traitement en quelques minutes, mais une première
+          # soumission d'un compte inconnu peut dépasser la demi-heure.
+          if ! xcrun notarytool wait "$ID" "${AUTH[@]}" --timeout 55m; then
+            echo "::error::notarisation non aboutie, rapport d'Apple ci-dessous"
+            xcrun notarytool log "$ID" "${AUTH[@]}" || true
+            rm -f "$KEY"
+            exit 1
+          fi
+
           rm -f "$KEY"
-
           xcrun stapler staple "$DMG"
           xcrun stapler validate "$DMG"
 
