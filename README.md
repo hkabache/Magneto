@@ -2,7 +2,7 @@
 
 Application macOS de dictée vocale en barre de menus. Un raccourci (Option+Espace par défaut) démarre l'enregistrement, le même raccourci l'arrête, le texte transcrit et nettoyé est collé au curseur.
 
-Successeur minimaliste du fork Handy (conservé dans `legacy/` comme référence, non versionné dans ce repo).
+Sans aucune clé API, elle fonctionne hors ligne avec le moteur de transcription d'Apple. Avec une clé, la qualité monte nettement.
 
 ## Fonctionnement
 
