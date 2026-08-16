@@ -45,3 +45,28 @@ targets:
         INFOPLIST_KEY_CFBundleDisplayName: Magneto
         INFOPLIST_KEY_NSMicrophoneUsageDescription: "Magneto enregistre le micro pendant la dictée."
         INFOPLIST_KEY_NSSpeechRecognitionUsageDescription: "Magneto peut transcrire localement via la reconnaissance vocale d'Apple."
+    scheme:
+      testTargets:
+        - MagnetoTests
+
+  MagnetoTests:
+    type: bundle.unit-test
+    platform: macOS
+    sources:
+      - path: MagnetoTests
+      # The app is compiled into the test bundle instead of being hosted by it: the
+      # hardened runtime forbids the code injection a test host would need, and
+      # relaxing it for Debug would break the very signature TCC pins its grants to.
+      - path: Magneto
+        excludes:
+          - MagnetoApp.swift
+    dependencies:
+      - package: KeyboardShortcuts
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.hkabache.magneto.tests
+        PRODUCT_NAME: MagnetoTests
+        SWIFT_VERSION: "5.0"
+        GENERATE_INFOPLIST_FILE: true
+        CODE_SIGN_STYLE: Manual
+        CODE_SIGN_IDENTITY: "-"

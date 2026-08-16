@@ -16,6 +16,7 @@ xcodebuild -project Magneto.xcodeproj -scheme Magneto -configuration Debug \
   -derivedDataPath ~/Library/Developer/Xcode/DerivedData/Magneto build
 ./scripts/dev.sh                   # Debug build + launch
 ./scripts/install.sh               # Release build + install to /Applications + launch
+xcodebuild test -project Magneto.xcodeproj -scheme Magneto -destination 'platform=macOS'
 ```
 
 Never build with `-derivedDataPath build` (inside the repo): Spotlight indexes the
@@ -41,8 +42,13 @@ Magneto/
   PostProcessing/LLMPass.swift     LLM cleanup pass, strict "correct, never rewrite" prompt
   Output/Paster.swift              transient pasteboard + CGEvent Cmd+V + clipboard restore
   UI/                              MenuBarView (popover with tabs), OverlayPanel (NSPanel pill)
-  Support/                         AppSettings, Keychain, Permissions, Hotkeys, CapsLockDelay
+  Support/                         AppSettings, Keychain, Permissions, Hotkeys, CapsLockDelay, Log, Diagnostics
+MagnetoTests/                      pure-logic tests, no network, no host app
 ```
+
+The test bundle compiles the app sources into itself rather than being hosted by the
+app: the hardened runtime blocks the injection a `TEST_HOST` needs, and relaxing it
+for Debug would break the signature TCC pins its grants to.
 
 ## Conventions
 

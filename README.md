@@ -1,6 +1,19 @@
 # Magneto
 
-Application macOS de dictée vocale en barre de menus. Un raccourci (Option+Espace par défaut) démarre l'enregistrement, le même raccourci l'arrête, le texte transcrit et nettoyé est collé au curseur.
+Dictée vocale pour macOS, dans la barre de menus. Un raccourci démarre l'enregistrement, le même l'arrête, et le texte transcrit puis nettoyé arrive directement au curseur, dans n'importe quelle application.
+
+## Installation
+
+1. Télécharger le `.dmg` de la [dernière version](https://github.com/hkabache/Magneto/releases/latest)
+2. Ouvrir le DMG et glisser Magneto dans Applications
+3. Lancer l'app : une icône apparaît dans la barre de menus, en haut à droite
+4. Autoriser le microphone, puis l'accessibilité, quand l'app les demande
+
+macOS 26 minimum, Mac Apple Silicon. L'app est signée et notarisée par Apple : elle s'ouvre normalement, sans avertissement ni détour par les Réglages Système.
+
+L'accessibilité sert au collage automatique. Sans elle Magneto fonctionne quand même, mais le texte se contente d'arriver dans le presse-papiers et il faut faire Cmd+V soi-même.
+
+Les mises à jour ne sont pas encore automatiques : chaque version est publiée sur la [page des releases](https://github.com/hkabache/Magneto/releases), et s'installe en remplaçant l'app.
 
 ## Pourquoi
 
@@ -27,45 +40,47 @@ Option+Espace → transcription :
 → collage au curseur (Cmd+V synthétique, presse-papiers restauré)
 ```
 
-## Prérequis
-
-- macOS 26 minimum (Apple Silicon)
-- Xcode 26+
-- [xcodegen](https://github.com/yonaskolb/XcodeGen) : `brew install xcodegen`
-
-## Build et installation
-
-```bash
-./scripts/install.sh   # build Release + installation dans /Applications + lancement
-./scripts/dev.sh       # build Debug + installation dans /Applications + lancement
-```
-
-Les deux scripts compilent dans `~/Library/Developer/Xcode/DerivedData/Magneto` et suppriment la copie intermédiaire de l'app : Spotlight indexe tout `.app` qu'il trouve, et une recherche « Magneto » dans le Finder doit renvoyer une seule icône.
-
-## Configuration
+## Réglages
 
 Tout se passe dans le popover de la barre de menus :
 
-- **Général** : raccourci, position de la fenêtre d'enregistrement, délai Caps Lock, lancement au démarrage, post-traitement IA, typographie française
-- **Vocabulaire** : mots et termes techniques envoyés au moteur de transcription (keyterms) et au LLM de nettoyage. À cette liste s'ajoute un vocabulaire intégré, non affiché et non modifiable, qui couvre les noms propres du produit lui-même (Magneto, ElevenLabs, Voxtral, Mistral, Anthropic, Claude) pour qu'on puisse parler de l'app à l'app sans rien configurer
+- **Général** : raccourci, position de la fenêtre d'enregistrement, délai Caps Lock, lancement au démarrage, nettoyage par IA, typographie française
+- **Vocabulaire** : mots et termes techniques envoyés au moteur de transcription et au LLM de nettoyage. À cette liste s'ajoute un vocabulaire intégré, non affiché et non modifiable, qui couvre les noms propres du produit lui-même (Magneto, ElevenLabs, Voxtral, Mistral, Anthropic, Claude) pour qu'on puisse parler de l'app à l'app sans rien configurer
 - **Clés API** : groupées par usage. Transcription (ElevenLabs, Mistral) et nettoyage (Anthropic, plus la clé Mistral qui sert aux deux)
 
-« Caps Lock sans délai » supprime le délai d'activation d'environ 100 ms que macOS impose sur la touche, et qui fait qu'un appui rapide ne l'active pas. Le réglage passe par `hidutil` et vaut pour tout le système, pas seulement pour Magneto. L'override ne survit pas à une déconnexion, donc Magneto le repose à chaque lancement tant que l'option est active. `hidutil` sait écrire une propriété mais pas l'effacer : désactiver l'option réécrit le délai d'origine au lieu de retirer l'override.
+Sans aucune clé, Magneto fonctionne, avec le seul moteur Apple hors ligne et le nettoyage par règles. Le nettoyage par IA est alors grisé, puisqu'il demande une clé Mistral ou Anthropic.
 
 Les clés vivent dans le trousseau macOS, sous le service `com.hkabache.magneto` et les comptes `elevenlabs`, `mistral`, `anthropic`. Elles ne sont donc pas dans le bundle : supprimer l'app ne les efface pas, et une réinstallation les retrouve.
 
-Sans aucune clé, Magneto fonctionne quand même, avec le seul moteur Apple hors ligne et le nettoyage par règles. Le nettoyage par IA est alors désactivé dans l'onglet Général, puisqu'il demande une clé Mistral ou Anthropic.
+« Caps Lock sans délai » supprime le délai d'activation d'environ 100 ms que macOS impose sur la touche, et qui fait qu'un appui rapide ne l'active pas. Le réglage passe par `hidutil` et vaut pour tout le système, pas seulement pour Magneto. L'override ne survit pas à une déconnexion, donc Magneto le repose à chaque lancement tant que l'option est active. `hidutil` sait écrire une propriété mais pas l'effacer : désactiver l'option réécrit le délai d'origine au lieu de retirer l'override.
 
-## Permissions
+## Signaler un problème
 
-- **Microphone** : demandé au premier enregistrement
-- **Accessibilité** : nécessaire pour le collage automatique (Cmd+V synthétique). Sans elle, le texte est copié dans le presse-papiers et un message invite à coller manuellement.
+Le bouton **Diagnostic**, en bas du popover, copie le déroulé des dictées faites depuis le lancement de l'app : moteurs disponibles, celui qui a répondu, raison de chaque repli, durées, et ce que la passe de nettoyage a fait ou n'a pas fait. Il n'y a plus qu'à le coller dans un message.
 
-Ces autorisations survivent aux rebuilds, ce qui suppose un certificat en place.
+Ce déroulé vient du journal système de macOS, où Magneto écrit au fil de l'eau. Il ne quitte la machine que si on l'y colle soi-même, et il ne contient ni le texte dicté, ni le vocabulaire, ni les clés.
 
-TCC ne mémorise pas « cette app est autorisée » mais une exigence de signature, revérifiée à chaque appel. Signée en ad-hoc, l'exigence porte sur le `cdhash` du binaire : elle est invalidée à chaque compilation, et macOS refuse alors que la case reste cochée dans les Réglages Système. Magneto est donc signée avec un certificat auto-signé, ce qui déplace l'exigence sur le certificat.
+## Développement
 
-Pour recréer ce certificat sur une autre machine : Trousseau d'accès → Assistant de certification → Créer un certificat, nom `Magneto Code Signing`, type d'identité « Racine auto-signée », type de certificat « Signature de code ». Aucun compte développeur nécessaire, et aucun réglage de confiance à poser, `codesign` accepte la racine auto-signée telle quelle.
+Xcode 26 et [xcodegen](https://github.com/yonaskolb/XcodeGen) (`brew install xcodegen`), qui génère `Magneto.xcodeproj` à partir de `project.yml`.
+
+```bash
+./scripts/dev.sh       # build Debug + installation dans /Applications + lancement
+./scripts/install.sh   # build Release + installation dans /Applications + lancement
+xcodebuild test -project Magneto.xcodeproj -scheme Magneto -destination 'platform=macOS'
+```
+
+Les tests couvrent ce qui décide du texte livré sans passer par le réseau : le nettoyage par règles, la mise en forme du vocabulaire attendue par chaque moteur, et le garde-fou qui accepte ou rejette la sortie du LLM.
+
+Les deux scripts compilent dans `~/Library/Developer/Xcode/DerivedData/Magneto` et suppriment la copie intermédiaire de l'app : Spotlight indexe tout `.app` qu'il trouve, et une recherche « Magneto » dans le Finder doit renvoyer une seule icône.
+
+Un tag `v*` déclenche la release : tests, DMG signé, notarisation par Apple, agrafage du ticket, publication.
+
+### Signature et permissions
+
+TCC ne mémorise pas « cette app est autorisée » mais une exigence de signature, revérifiée à chaque appel. En ad-hoc, cette exigence porte sur le `cdhash` du binaire : invalidée à chaque compilation, elle fait refuser l'app alors que la case reste cochée dans les Réglages Système. Magneto est signée avec un certificat Developer ID, ce qui déplace l'exigence sur l'identifiant d'équipe du certificat : elle survit aux rebuilds, et au renouvellement du certificat.
+
+Compiler sans ce certificat demande de remplacer `CODE_SIGN_IDENTITY` par `-` dans `project.yml`. L'app fonctionne, mais microphone et accessibilité sont à re-cocher après chaque build.
 
 `install.sh` affiche l'exigence obtenue en fin d'installation. Si `cdhash` y apparaît, le certificat est absent et les autorisations sauteront au prochain build.
 

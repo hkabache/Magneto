@@ -163,13 +163,16 @@ final class AppState: ObservableObject {
         }
         // Duration comes from the file, not the recorder: a recorder that stopped on
         // its own (mic unplugged) reports 0 and the audio would be silently dropped.
-        guard audioDuration(of: url) >= 0.5 else {
+        let duration = audioDuration(of: url)
+        guard duration >= 0.5 else {
+            Log.pipeline.notice("audio ignoré : \(duration, format: .fixed(precision: 2)) s")
             try? FileManager.default.removeItem(at: url)
             KeyboardShortcuts.disable(.cancelDictation)
             phase = .idle
             overlay.hide()
             return
         }
+        Log.pipeline.notice("dictée : \(duration, format: .fixed(precision: 1)) s d'audio")
         phase = .transcribing
         busyLabel = "Transcription…"
         pipelineTask = Task { @MainActor [weak self] in
@@ -179,6 +182,7 @@ final class AppState: ObservableObject {
             try? await Task.sleep(for: .seconds(180))
             guard !Task.isCancelled, let self, self.phase == .transcribing else { return }
             self.pipelineTask?.cancel()
+            Log.pipeline.error("dictée abandonnée : délai dépassé")
             self.lastError = "Transcription interrompue : délai de 3 minutes dépassé."
         }
     }
@@ -213,22 +217,12 @@ final class AppState: ObservableObject {
             if !transcription.failures.isEmpty {
                 lastError = "\(transcription.failures.joined(separator: " · ")). Texte transcrit par \(transcription.engine)."
             }
-            var text = RulePass.clean(
+            let ruled = RulePass.clean(
                 transcription.text,
                 customWords: vocabulary,
                 frenchTypography: settings.frenchTypography
             )
-            if settings.postProcessEnabled, text.count >= 40 {
-                busyLabel = "Nettoyage…"
-                if let cleaned = try? await LLMPass.clean(
-                    text,
-                    provider: settings.postProcessProvider,
-                    vocabulary: vocabulary,
-                    aggressiveFillers: settings.aggressiveFillers
-                ), LLMPass.isSane(cleaned, comparedTo: text, aggressiveFillers: settings.aggressiveFillers) {
-                    text = RulePass.normalizeQuotes(cleaned.trimmingCharacters(in: .whitespacesAndNewlines))
-                }
-            }
+            let text = await polished(ruled, vocabulary: vocabulary)
             guard !Task.isCancelled else { return }
             guard !text.isEmpty else {
                 fail("La transcription est vide.")
@@ -237,8 +231,48 @@ final class AppState: ObservableObject {
             pushHistory(text)
             let outcome = await Paster.deliver(text)
             if outcome == .copiedOnly {
+                Log.paste.error("collage refusé : permission Accessibilité absente")
                 lastError = "Collage impossible sans la permission Accessibilité. Le texte est copié : fais Cmd+V."
+            } else {
+                Log.paste.notice("texte collé : \(text.count) caractères")
             }
+        }
+    }
+
+    /// Below this length a dictation is a sentence or two, where the model has nothing
+    /// to correct and everything to invent.
+    private static let llmMinimumLength = 40
+
+    /// The paste never waits on the model and never dies with it: each way the pass can
+    /// come to nothing returns the rule-cleaned text, and says which way in the journal.
+    private func polished(_ text: String, vocabulary: [String]) async -> String {
+        guard settings.postProcessEnabled else {
+            Log.cleanup.notice("nettoyage IA désactivé")
+            return text
+        }
+        guard text.count >= Self.llmMinimumLength else {
+            Log.cleanup.notice("nettoyage IA ignoré : \(text.count) caractères, seuil \(Self.llmMinimumLength)")
+            return text
+        }
+        let provider = settings.postProcessProvider.label
+        busyLabel = "Nettoyage…"
+        let stopwatch = Stopwatch()
+        do {
+            let cleaned = try await LLMPass.clean(
+                text,
+                provider: settings.postProcessProvider,
+                vocabulary: vocabulary,
+                aggressiveFillers: settings.aggressiveFillers
+            )
+            guard LLMPass.isSane(cleaned, comparedTo: text, aggressiveFillers: settings.aggressiveFillers) else {
+                Log.cleanup.error("\(provider, privacy: .public) : sortie écartée, texte non nettoyé conservé")
+                return text
+            }
+            Log.cleanup.notice("\(provider, privacy: .public) : appliqué en \(stopwatch.milliseconds) ms")
+            return RulePass.normalizeQuotes(cleaned.trimmingCharacters(in: .whitespacesAndNewlines))
+        } catch {
+            Log.cleanup.error("\(provider, privacy: .public) : \(error.localizedDescription, privacy: .public)")
+            return text
         }
     }
 
@@ -258,6 +292,7 @@ final class AppState: ObservableObject {
     }
 
     private func fail(_ message: String) {
+        Log.pipeline.error("\(message, privacy: .public)")
         lastError = message
         recordingWatchdog?.cancel()
         recordingWatchdog = nil

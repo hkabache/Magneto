@@ -81,17 +81,26 @@ enum TranscriptionService {
         clients.append(AppleSpeechClient())
 
         var failures: [String] = []
+        Log.transcription.notice("moteurs : \(clients.map { $0.name }.joined(separator: " puis "), privacy: .public)")
         for client in clients {
+            let stopwatch = Stopwatch()
             do {
                 let text = try await client.transcribe(audioURL: audioURL, language: language, vocabulary: vocabulary)
                 let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
                 if trimmed.isEmpty {
-                    failures.append("\(client.name) : texte vide")
+                    let failure = "\(client.name) : texte vide"
+                    Log.transcription.error("\(failure, privacy: .public)")
+                    failures.append(failure)
                     continue
                 }
+                Log.transcription.notice(
+                    "\(client.name, privacy: .public) : \(trimmed.count) caractères en \(stopwatch.milliseconds) ms"
+                )
                 return .success((trimmed, client.name, failures))
             } catch {
-                failures.append(describe(error, from: client))
+                let failure = describe(error, from: client)
+                Log.transcription.error("\(failure, privacy: .public) (après \(stopwatch.milliseconds) ms)")
+                failures.append(failure)
             }
         }
         return .failure(.allEnginesFailed(failures.joined(separator: " · ")))

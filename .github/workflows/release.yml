@@ -84,6 +84,18 @@ jobs:
             CURRENT_PROJECT_VERSION="$GITHUB_RUN_NUMBER" \
             build
 
+      # Avant la notarisation, la seule étape lente : une règle de nettoyage cassée
+      # doit coûter une minute, pas une demi-heure d'attente chez Apple.
+      - name: Tester
+        run: |
+          set -euo pipefail
+          xcodebuild test \
+            -project Magneto.xcodeproj \
+            -scheme Magneto \
+            -configuration Release \
+            -destination "platform=macOS" \
+            -derivedDataPath "$RUNNER_TEMP/DerivedData"
+
       # Vérifié avant de soumettre : un rejet de notarisation ne dit pas toujours
       # ce qui manque, alors qu'un contrôle local nomme le problème.
       - name: Vérifier la signature de l'app

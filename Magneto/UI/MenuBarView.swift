@@ -7,6 +7,7 @@ struct MenuBarView: View {
     @State private var tab: Tab = .general
     @State private var setupSkipped = false
     @State private var justCopied = false
+    @State private var diagnosticsCopied = false
     /// Owned here rather than by the tab: a verdict obtained once must survive leaving
     /// the tab, otherwise every return showed keys as unverified again.
     @StateObject private var keyStatus = KeyStatus()
@@ -103,10 +104,24 @@ struct MenuBarView: View {
 
     private var footer: some View {
         HStack {
-            Text("Magneto \(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "")")
+            Text("Magneto \(Diagnostics.appVersion)")
                 .font(.caption)
                 .foregroundStyle(.secondary)
             Spacer()
+            Button {
+                Task {
+                    Paster.copyPlain(await Diagnostics.report())
+                    diagnosticsCopied = true
+                    try? await Task.sleep(for: .seconds(1.5))
+                    diagnosticsCopied = false
+                }
+            } label: {
+                Label(
+                    diagnosticsCopied ? "Copié" : "Diagnostic",
+                    systemImage: diagnosticsCopied ? "checkmark" : "stethoscope"
+                )
+            }
+            .help("Copier le déroulé des dernières dictées, à joindre à un signalement. Le texte dicté n'y figure jamais.")
             Button("Quitter") {
                 NSApplication.shared.terminate(nil)
             }
