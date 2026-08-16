@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!-- The hardened runtime closes access to sensitive resources unless they are
+	     declared here, and notarization requires that runtime. Recording is the
+	     only such resource Magneto touches: pasting goes through Accessibility,
+	     which TCC governs rather than entitlements, and the hardened runtime
+	     leaves outgoing network calls alone. -->
+	<key>com.apple.security.device.audio-input</key>
+	<true/>
+</dict>
+</plist>
