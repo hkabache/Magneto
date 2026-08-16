@@ -208,6 +208,11 @@ final class AppState: ObservableObject {
         case .failure(let error):
             fail(error.localizedDescription)
         case .success(let transcription):
+            // A fallback is not an error, but staying silent about it let the quality
+            // drop for days without a sign.
+            if !transcription.failures.isEmpty {
+                lastError = "\(transcription.failures.joined(separator: " · ")). Texte transcrit par \(transcription.engine)."
+            }
             var text = RulePass.clean(
                 transcription.text,
                 customWords: vocabulary,
