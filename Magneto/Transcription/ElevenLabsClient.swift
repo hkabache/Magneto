@@ -34,9 +34,29 @@ struct ElevenLabsClient: TranscriptionClient {
 
         let (data, http) = try await HTTP.send(request, body: form.finalized())
         guard http.statusCode == 200 else {
-            throw MagnetoError.api(engine: name, message: "HTTP \(http.statusCode) \(HTTP.errorBody(data))")
+            throw MagnetoError.api(engine: name, message: Self.reason(status: http.statusCode, body: data))
         }
         return try JSONDecoder().decode(Response.self, from: data).text
+    }
+
+    /// An exhausted quota comes back as a plain 401, the same as a bad key, and only
+    /// the body separates them. Both deserve a sentence rather than a status code,
+    /// since this text is what the user reads when a dictation falls back.
+    private static func reason(status: Int, body: Data) -> String {
+        struct Payload: Decodable {
+            struct Detail: Decodable {
+                let status: String?
+            }
+            let detail: Detail?
+        }
+        switch (try? JSONDecoder().decode(Payload.self, from: body))?.detail?.status {
+        case "quota_exceeded":
+            return "quota épuisé"
+        case "invalid_api_key":
+            return "clé refusée"
+        default:
+            return "HTTP \(status) \(HTTP.errorBody(body))"
+        }
     }
 
     /// Scribe v2 rejects `<>{}[]\`, terms over 50 chars or over 5 words; >100 keyterms

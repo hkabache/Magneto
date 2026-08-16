@@ -63,7 +63,14 @@ enum HTTP {
 }
 
 enum TranscriptionService {
-    static func transcribe(audioURL: URL, language: String, vocabulary: [String]) async -> Result<(text: String, engine: String), MagnetoError> {
+    /// Failures are reported alongside a success, not only when everything fails: a
+    /// primary engine that dies and leaves a lesser one to answer used to be entirely
+    /// invisible, so the quality dropped without a word.
+    static func transcribe(
+        audioURL: URL,
+        language: String,
+        vocabulary: [String]
+    ) async -> Result<(text: String, engine: String, failures: [String]), MagnetoError> {
         var clients: [any TranscriptionClient] = []
         if Keychain.exists(Keychain.elevenLabs) {
             clients.append(ElevenLabsClient())
@@ -82,11 +89,20 @@ enum TranscriptionService {
                     failures.append("\(client.name) : texte vide")
                     continue
                 }
-                return .success((trimmed, client.name))
+                return .success((trimmed, client.name, failures))
             } catch {
-                failures.append("\(client.name) : \(error.localizedDescription)")
+                failures.append(describe(error, from: client))
             }
         }
         return .failure(.allEnginesFailed(failures.joined(separator: " · ")))
+    }
+
+    /// `MagnetoError.api` already opens with the engine name, so prefixing it a second
+    /// time produced "ElevenLabs Scribe v2 : ElevenLabs Scribe v2 : quota épuisé".
+    private static func describe(_ error: Error, from client: any TranscriptionClient) -> String {
+        if let magneto = error as? MagnetoError, case .api = magneto {
+            return magneto.localizedDescription
+        }
+        return "\(client.name) : \(error.localizedDescription)"
     }
 }
