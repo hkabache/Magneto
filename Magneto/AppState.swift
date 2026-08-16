@@ -28,6 +28,7 @@ final class AppState: ObservableObject {
     private var pipelineTask: Task<Void, Never>?
     private var pipelineWatchdog: Task<Void, Never>?
     private var accessibilityWatch: Task<Void, Never>?
+    private var accessibilityPrompted = false
 
     private init() {
         history = UserDefaults.standard.stringArray(forKey: "history") ?? []
@@ -41,9 +42,18 @@ final class AppState: ObservableObject {
         watchAccessibility()
     }
 
+    /// Two steps rather than one. The system prompt is what registers the app in the
+    /// Accessibility list, and it already carries its own button to System Settings.
+    /// Opening the pane in the same breath showed it before the entry existed, so the
+    /// app was missing from the list it told you to tick. The pane is therefore kept
+    /// for a second press, by which point the entry is there.
     func requestAccessibility() {
-        Permissions.promptAccessibility()
-        Permissions.openAccessibilitySettings()
+        if accessibilityPrompted {
+            Permissions.openAccessibilitySettings()
+        } else {
+            accessibilityPrompted = true
+            Permissions.promptAccessibility()
+        }
         watchAccessibility()
     }
 

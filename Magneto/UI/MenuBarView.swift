@@ -134,13 +134,13 @@ private struct AccessibilitySetup: View {
             Button {
                 app.requestAccessibility()
             } label: {
-                Text("Ouvrir les Réglages Système")
+                Text("Autoriser Magneto")
                     .frame(maxWidth: .infinity)
             }
             .controlSize(.large)
             .buttonStyle(.borderedProminent)
             VStack(alignment: .leading, spacing: 4) {
-                Text("1. Coche Magneto dans la liste")
+                Text("1. Ouvre les réglages depuis la fenêtre macOS, puis coche Magneto")
                 Text("2. Reviens ici, la fenêtre se met à jour toute seule")
             }
             .font(.caption)
