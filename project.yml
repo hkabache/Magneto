@@ -1,6 +1,6 @@
 name: Magneto
 options:
-  bundleIdPrefix: com.hugok94
+  bundleIdPrefix: com.hkabache
   createIntermediateGroups: true
   deploymentTarget:
     macOS: "26.0"
@@ -18,7 +18,7 @@ targets:
       - package: KeyboardShortcuts
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.hugok94.magneto
+        PRODUCT_BUNDLE_IDENTIFIER: com.hkabache.magneto
         PRODUCT_NAME: Magneto
         MARKETING_VERSION: "0.1.0"
         CURRENT_PROJECT_VERSION: "2"
