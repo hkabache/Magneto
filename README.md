@@ -42,7 +42,7 @@ Tout se passe dans le popover de la barre de menus :
 
 « Caps Lock sans délai » supprime le délai d'activation d'environ 100 ms que macOS impose sur la touche, et qui fait qu'un appui rapide ne l'active pas. Le réglage passe par `hidutil` et vaut pour tout le système, pas seulement pour Magneto. L'override ne survit pas à une déconnexion, donc Magneto le repose à chaque lancement tant que l'option est active. `hidutil` sait écrire une propriété mais pas l'effacer : désactiver l'option réécrit le délai d'origine au lieu de retirer l'override.
 
-Les clés vivent dans le trousseau macOS, sous le service `com.hugok94.magneto` et les comptes `elevenlabs`, `mistral`, `anthropic`. Elles ne sont donc pas dans le bundle : supprimer l'app ne les efface pas, et une réinstallation les retrouve.
+Les clés vivent dans le trousseau macOS, sous le service `com.hkabache.magneto` et les comptes `elevenlabs`, `mistral`, `anthropic`. Elles ne sont donc pas dans le bundle : supprimer l'app ne les efface pas, et une réinstallation les retrouve.
 
 Sans aucune clé, Magneto fonctionne quand même, avec le seul moteur Apple hors ligne et le nettoyage par règles. Le nettoyage par IA est alors désactivé dans l'onglet Général, puisqu'il demande une clé Mistral ou Anthropic.
 

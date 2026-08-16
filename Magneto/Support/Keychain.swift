@@ -6,7 +6,7 @@ enum Keychain {
     static let mistral = "mistral"
     static let anthropic = "anthropic"
 
-    private static let service = "com.hugok94.magneto"
+    private static let service = "com.hkabache.magneto"
 
     static func get(_ account: String) -> String? {
         let query: [String: Any] = [
