@@ -137,7 +137,7 @@ enum RulePass {
         #"(?:[a-zA-Z][a-zA-Z0-9+.-]*://\S*[\w/]|www\.[\w.-]+[\w/]|[\w.+-]+@[\w-]+\.[\w.-]*\w)"#
 
     /// URLs and e-mail addresses are pulled out before the punctuation and typography
-    /// rules run, otherwise "https://leetchi.com/pot?id=42" comes back mangled.
+    /// rules run, otherwise "https://example.com/page?id=42" comes back mangled.
     private static func mask(_ text: String) -> (String, [String]) {
         guard let regex = try? NSRegularExpression(pattern: protectedPattern) else {
             return (text, [])
