@@ -7,6 +7,9 @@ struct MenuBarView: View {
     @State private var tab: Tab = .general
     @State private var setupSkipped = false
     @State private var justCopied = false
+    /// Owned here rather than by the tab: a verdict obtained once must survive leaving
+    /// the tab, otherwise every return showed keys as unverified again.
+    @StateObject private var keyStatus = KeyStatus()
 
     private enum Tab: String, CaseIterable, Identifiable {
         case general = "Général"
@@ -57,9 +60,9 @@ struct MenuBarView: View {
             .padding(.bottom, 6)
             // Each tab sets its own height: a form must never scroll to show its rows.
             switch tab {
-            case .general: GeneralTab()
-            case .vocabulary: VocabularyTab()
-            case .keys: KeysTab()
+            case .general: GeneralTab(onOpenKeys: { tab = .keys })
+            case .vocabulary: VocabularyTab(onOpenKeys: { tab = .keys })
+            case .keys: KeysTab(status: keyStatus)
             }
             Divider()
             footer
@@ -182,6 +185,27 @@ private struct HelpRow<Content: View>: View {
     }
 }
 
+/// Explains why a section is inert. The link is markdown inside the sentence rather
+/// than a separate button, and its scheme is never opened: `OpenURLAction` intercepts
+/// the tap to switch tabs.
+private struct KeyRequiredNotice: View {
+    let text: LocalizedStringKey
+    let onOpenKeys: () -> Void
+
+    var body: some View {
+        HStack(alignment: .firstTextBaseline, spacing: 5) {
+            Image(systemName: "key.fill")
+                .foregroundStyle(.orange)
+            Text(text)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .environment(\.openURL, OpenURLAction { _ in
+            onOpenKeys()
+            return .handled
+        })
+    }
+}
+
 /// macOS only draws system tooltips for the focused window, and the menu bar panel
 /// never takes focus, so `.help()` stays silent here and the help tag is drawn by
 /// hand. Wording follows the HIG: one short sentence, starting with a verb, about
@@ -193,7 +217,6 @@ private struct HelpRow<Content: View>: View {
 private struct HelpTag: View {
     private let text: String
     @State private var hovering = false
-    @State private var visible = false
 
     init(_ text: String) {
         self.text = text
@@ -201,10 +224,24 @@ private struct HelpTag: View {
 
     var body: some View {
         Image(systemName: "info.circle")
-            .foregroundStyle(visible ? Color.accentColor : Color.secondary)
-            .contentShape(Rectangle())
+            .foregroundStyle(hovering ? Color.accentColor : Color.secondary)
             .accessibilityLabel("Aide")
             .accessibilityHint(text)
+            .onHover { hovering = $0 }
+            .helpBubble(text)
+    }
+}
+
+/// Carries the hand-drawn bubble on any view. The system tooltip takes about three
+/// seconds to appear, which is far too slow for a status light one glances at.
+private struct HelpBubble: ViewModifier {
+    let text: String
+    @State private var hovering = false
+    @State private var visible = false
+
+    func body(content: Content) -> some View {
+        content
+            .contentShape(Rectangle())
             .onHover { inside in
                 hovering = inside
                 guard inside else {
@@ -223,6 +260,12 @@ private struct HelpTag: View {
     }
 }
 
+private extension View {
+    func helpBubble(_ text: String) -> some View {
+        modifier(HelpBubble(text: text))
+    }
+}
+
 private struct HelpTagPosition {
     let text: String
     let anchor: Anchor<CGRect>
@@ -236,6 +279,29 @@ private struct HelpTagKey: PreferenceKey {
     }
 }
 
+/// Matches the look of a macOS tooltip: 11 pt text, tight padding, small radius and a
+/// discreet shadow. The size is measured rather than left to SwiftUI, because the
+/// bubble is positioned by hand and its dimensions must be known before it is drawn.
+private enum HelpBubbleStyle {
+    static let maxWidth: CGFloat = 220
+    static let radius: CGFloat = 5
+    static let horizontalPadding: CGFloat = 7
+    static let verticalPadding: CGFloat = 4
+    static let font = NSFont.systemFont(ofSize: 11)
+
+    static func size(for text: String) -> CGSize {
+        let bounds = (text as NSString).boundingRect(
+            with: NSSize(width: maxWidth - horizontalPadding * 2, height: .greatestFiniteMagnitude),
+            options: [.usesLineFragmentOrigin, .usesFontLeading],
+            attributes: [.font: font]
+        )
+        return CGSize(
+            width: ceil(bounds.width) + horizontalPadding * 2,
+            height: ceil(bounds.height) + verticalPadding * 2
+        )
+    }
+}
+
 private extension View {
     /// Draws the visible help tag above the form, clamped inside it: anchored under
     /// its icon, flipped above when the bottom edge is too close, and pushed left
@@ -245,21 +311,28 @@ private extension View {
             GeometryReader { proxy in
                 if let position {
                     let icon = proxy[position.anchor]
-                    let width: CGFloat = 230
-                    let height: CGFloat = 44
-                    let margin: CGFloat = 10
-                    let below = icon.maxY + 6
-                    let fitsBelow = below + height + margin <= proxy.size.height
+                    let size = HelpBubbleStyle.size(for: position.text)
+                    let margin: CGFloat = 8
+                    let below = icon.maxY + 5
+                    let fitsBelow = below + size.height + margin <= proxy.size.height
                     Text(position.text)
-                        .font(.callout)
-                        .padding(.horizontal, 9)
-                        .frame(width: width, height: height, alignment: .leading)
-                        .background(Color(nsColor: .controlBackgroundColor), in: RoundedRectangle(cornerRadius: 6))
-                        .overlay(RoundedRectangle(cornerRadius: 6).strokeBorder(Color(nsColor: .separatorColor)))
-                        .shadow(color: .black.opacity(0.28), radius: 6, y: 2)
+                        .font(.system(size: 11))
+                        .padding(.horizontal, HelpBubbleStyle.horizontalPadding)
+                        .padding(.vertical, HelpBubbleStyle.verticalPadding)
+                        // Width forced, height free: the measured height only decides
+                        // where the bubble goes, and imposing it truncated any text
+                        // whose real layout needed a point more than the estimate.
+                        .frame(width: size.width, alignment: .leading)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: HelpBubbleStyle.radius))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: HelpBubbleStyle.radius)
+                                .strokeBorder(Color(nsColor: .separatorColor), lineWidth: 0.5)
+                        )
+                        .shadow(color: .black.opacity(0.16), radius: 3, y: 1)
                         .offset(
-                            x: min(max(margin, icon.minX - 6), proxy.size.width - width - margin),
-                            y: fitsBelow ? below : max(margin, icon.minY - height - 6)
+                            x: min(max(margin, icon.minX - 4), max(margin, proxy.size.width - size.width - margin)),
+                            y: fitsBelow ? below : max(margin, icon.minY - size.height - 5)
                         )
                 }
             }
@@ -269,6 +342,8 @@ private extension View {
 }
 
 private struct GeneralTab: View {
+    let onOpenKeys: () -> Void
+
     @EnvironmentObject private var app: AppState
     @EnvironmentObject private var settings: AppSettings
     @State private var launchAtLogin = SMAppService.mainApp.status == .enabled
@@ -314,8 +389,15 @@ private struct GeneralTab: View {
                         isOn: providersWithKey.isEmpty ? Binding.constant(false) : $settings.postProcessEnabled
                     )
                     .labelsHidden()
+                    // Only the switch is disabled. Disabling the whole row killed the
+                    // help tag with it, hiding what the option does exactly when it
+                    // cannot be turned on and the question is most likely.
+                    .disabled(providersWithKey.isEmpty)
                 }
-                .disabled(providersWithKey.isEmpty)
+                // Dimming rather than disabling: the system disabled state alone is too
+                // discreet, the switch being already off, and opacity leaves the help
+                // tag reachable.
+                .opacity(providersWithKey.isEmpty ? 0.45 : 1)
                 if !providersWithKey.isEmpty, settings.postProcessEnabled {
                     // Every model stays listed, so the second one advertises itself
                     // as available once its key is filled in.
@@ -342,7 +424,10 @@ private struct GeneralTab: View {
                 Text("Nettoyage par IA")
             } footer: {
                 if providersWithKey.isEmpty {
-                    Text("Demande une clé Mistral ou Anthropic, à saisir dans l'onglet Clés API.")
+                    KeyRequiredNotice(
+                        text: "Pour activer cette fonctionnalité, une clé API de nettoyage est nécessaire, à saisir dans l'onglet [Clés API](magneto:keys).",
+                        onOpenKeys: onOpenKeys
+                    )
                 }
             }
 
@@ -385,56 +470,80 @@ private struct GeneralTab: View {
 }
 
 private struct VocabularyTab: View {
+    let onOpenKeys: () -> Void
+
     @EnvironmentObject private var settings: AppSettings
     @State private var newWord = ""
     @State private var selection: String?
+    /// Vocabulary reaches an engine as ElevenLabs keyterms, Voxtral context bias or
+    /// the cleanup prompt. Without a single key it goes nowhere, and a list that looks
+    /// live is worse than one that says it is not.
+    @State private var hasAnyKey = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            HStack(spacing: 6) {
-                TextField("Ajouter un terme", text: $newWord)
-                    .textFieldStyle(.roundedBorder)
-                    .onSubmit(add)
-                Button("Ajouter", action: add)
-                    .disabled(newWord.trimmingCharacters(in: .whitespaces).isEmpty)
-            }
-            // macOS convention: rows stay plain and removal happens through a
-            // button bar under the list, which also keeps the scrollbar from
-            // sitting on top of per-row controls.
-            List(selection: $selection) {
-                ForEach(settings.customWords, id: \.self) { word in
-                    Text(word)
+            VStack(alignment: .leading, spacing: 8) {
+                HStack(spacing: 6) {
+                    TextField("Ajouter un terme", text: $newWord)
+                        .textFieldStyle(.roundedBorder)
+                        .onSubmit(add)
+                    Button("Ajouter", action: add)
+                        .disabled(newWord.trimmingCharacters(in: .whitespaces).isEmpty)
+                }
+                // macOS convention: rows stay plain and removal happens through a
+                // button bar under the list, which also keeps the scrollbar from
+                // sitting on top of per-row controls.
+                List(selection: $selection) {
+                    ForEach(settings.customWords, id: \.self) { word in
+                        Text(word)
+                    }
+                }
+                .listStyle(.bordered(alternatesRowBackgrounds: true))
+                .onDeleteCommand(perform: removeSelected)
+                .frame(maxHeight: .infinity)
+                HStack(spacing: 6) {
+                    GradientButton(
+                        symbol: "minus",
+                        label: "Retirer le terme sélectionné",
+                        isEnabled: selection != nil,
+                        action: removeSelected
+                    )
+                    .frame(width: 24, height: 22)
+                    Spacer()
+                    Text("\(settings.customWords.count) terme\(settings.customWords.count > 1 ? "s" : "")")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
                 }
             }
-            .listStyle(.bordered(alternatesRowBackgrounds: true))
-            .onDeleteCommand(perform: removeSelected)
-            .frame(maxHeight: .infinity)
-            HStack(spacing: 6) {
-                GradientButton(
-                    symbol: "minus",
-                    label: "Retirer le terme sélectionné",
-                    isEnabled: selection != nil,
-                    action: removeSelected
-                )
-                .frame(width: 24, height: 22)
-                Spacer()
-                Text("\(settings.customWords.count) terme\(settings.customWords.count > 1 ? "s" : "")")
+            .disabled(!hasAnyKey)
+            .opacity(hasAnyKey ? 1 : 0.45)
+
+            // Kept outside the block above, otherwise the link would be disabled too.
+            if hasAnyKey {
+                Text("Ces termes sont transmis au moteur de transcription et servent de référence orthographique au nettoyage.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
-            }
-            // Placed under the controls it describes, where the grouped forms of the
-            // other tabs put their own explanations.
-            Text("Ces termes sont transmis au moteur de transcription et servent de référence orthographique au nettoyage.")
+                    .fixedSize(horizontal: false, vertical: true)
+                    .padding(.top, 4)
+            } else {
+                KeyRequiredNotice(
+                    text: "Sans clé API, ces termes ne partent vers aucun moteur. Ajoute une clé dans l'onglet [Clés API](magneto:keys).",
+                    onOpenKeys: onOpenKeys
+                )
                 .font(.caption)
-                .foregroundStyle(.secondary)
-                .fixedSize(horizontal: false, vertical: true)
                 .padding(.top, 4)
+            }
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 10)
         // The list grows with the vocabulary, so this tab is the one place that
         // needs a set height rather than its content's.
         .frame(height: 290)
+        .onAppear {
+            hasAnyKey = Keychain.exists(Keychain.elevenLabs)
+                || Keychain.exists(Keychain.mistral)
+                || Keychain.exists(Keychain.anthropic)
+        }
     }
 
     private func add() {
@@ -492,19 +601,80 @@ private struct GradientButton: NSViewRepresentable {
     }
 }
 
+/// Shared by every field rather than held in each one: Mistral is listed in both
+/// sections, so a key pasted in one has to light up the other. Both rows write the
+/// same keychain item, there is still only one secret.
+@MainActor
+private final class KeyStatus: ObservableObject {
+    @Published private(set) var present: Set<String> = []
+    @Published private(set) var checking: Set<String> = []
+    struct Problem {
+        let message: String
+        /// A refused key needs a new one, an exhausted quota needs patience. Sending
+        /// someone to re-paste a perfectly good key helps nobody.
+        let blocking: Bool
+    }
+
+    @Published private(set) var problems: [String: Problem] = [:]
+    /// Only keys actually probed in this session. Reopening the tab reloads presence
+    /// but probes nothing, and a green tick claiming validity would then be a guess.
+    @Published private(set) var validated: Set<String> = []
+
+    private static let accounts = [Keychain.elevenLabs, Keychain.mistral, Keychain.anthropic]
+
+    /// Probes anything still without a verdict, so opening the tab is enough to know
+    /// where each key stands. A verdict is kept for the whole session, so this costs
+    /// one request per key per launch. A previous failure is retried, since it may
+    /// have been the network rather than the key.
+    func load() {
+        present = Set(Self.accounts.filter { Keychain.exists($0) })
+        for account in present where !validated.contains(account) && !checking.contains(account) {
+            guard let key = Keychain.get(account) else { continue }
+            Task { await verify(key, account: account) }
+        }
+    }
+
+    func save(_ key: String, account: String, label: String) async {
+        Keychain.set(key, account: account, label: label)
+        guard Keychain.exists(account) else { return }
+        present.insert(account)
+        await verify(key, account: account)
+    }
+
+    private func verify(_ key: String, account: String) async {
+        problems[account] = nil
+        validated.remove(account)
+        checking.insert(account)
+        let outcome = await KeyCheck.run(account: account, key: key)
+        checking.remove(account)
+        switch outcome {
+        case .valid:
+            validated.insert(account)
+        case .unusable(let reason):
+            problems[account] = Problem(message: reason, blocking: false)
+        case .refused(let reason):
+            problems[account] = Problem(message: reason, blocking: true)
+        }
+    }
+}
+
 private struct KeysTab: View {
+    @ObservedObject var status: KeyStatus
+
     var body: some View {
         Form {
             Section {
                 KeyField(
                     label: "ElevenLabs",
                     help: "Scribe v2, moteur principal",
-                    account: Keychain.elevenLabs
+                    account: Keychain.elevenLabs,
+                    status: status
                 )
                 KeyField(
                     label: "Mistral",
-                    help: "Voxtral en secours, sert aussi au nettoyage",
-                    account: Keychain.mistral
+                    help: "Voxtral, moteur de secours. Même clé que le nettoyage",
+                    account: Keychain.mistral,
+                    status: status
                 )
             } header: {
                 Text("Transcription")
@@ -512,11 +682,20 @@ private struct KeysTab: View {
                 Text("Sans aucune clé, le moteur Apple hors ligne prend le relais.")
             }
 
+            // Mistral kept in second position, as in the section above: the same key
+            // then sits on the same row in both, which shows the link without a word.
             Section {
                 KeyField(
                     label: "Anthropic",
-                    help: "Claude Haiku, alternative à Mistral Small",
-                    account: Keychain.anthropic
+                    help: "Claude Haiku",
+                    account: Keychain.anthropic,
+                    status: status
+                )
+                KeyField(
+                    label: "Mistral",
+                    help: "Mistral Small. Même clé que la transcription",
+                    account: Keychain.mistral,
+                    status: status
                 )
             } header: {
                 Text("Nettoyage")
@@ -527,19 +706,30 @@ private struct KeysTab: View {
         .formStyle(.grouped)
         .fixedSize(horizontal: false, vertical: true)
         .helpTagOverlay()
+        .onAppear { status.load() }
     }
 }
 
-/// A settings window is modeless on macOS: no Save button, the value is committed
-/// when the field is validated or loses focus.
+/// A settings window is modeless on macOS: no Save button. A key is almost always
+/// pasted in one go, so the field commits on its own shortly after the text stops
+/// changing, and Return or leaving the field only shortcuts that wait.
 private struct KeyField: View {
+    /// Below this, the text cannot be a key from any of the three providers, and
+    /// probing it would just report a failure the user already knows about.
+    private static let plausibleLength = 16
+
     let label: String
     let help: String
     let account: String
+    @ObservedObject var status: KeyStatus
 
     @State private var value = ""
-    @State private var present = false
+    @State private var pending: Task<Void, Never>?
     @FocusState private var focused: Bool
+
+    private var isPresent: Bool {
+        status.present.contains(account)
+    }
 
     var body: some View {
         LabeledContent {
@@ -547,19 +737,20 @@ private struct KeyField: View {
                 SecureField(
                     label,
                     text: $value,
-                    prompt: Text(present ? "••••••••" : "Coller la clé")
+                    prompt: Text(isPresent ? "••••••••" : "Coller la clé")
                 )
-                    .labelsHidden()
-                    .textFieldStyle(.roundedBorder)
-                    .multilineTextAlignment(.leading)
-                    .focused($focused)
-                    .onSubmit(save)
-                    .onChange(of: focused) { _, isFocused in
-                        if !isFocused { save() }
-                    }
-                Image(systemName: present ? "checkmark.circle.fill" : "circle.dashed")
-                    .foregroundStyle(present ? Color.green : Color.secondary)
-                    .help(present ? "Clé enregistrée" : "Aucune clé enregistrée")
+                .labelsHidden()
+                .textFieldStyle(.roundedBorder)
+                .multilineTextAlignment(.leading)
+                .focused($focused)
+                .onSubmit(commitNow)
+                .onChange(of: focused) { _, isFocused in
+                    if !isFocused { commitNow() }
+                }
+                .onChange(of: value) { _, typed in
+                    scheduleCommit(typed)
+                }
+                indicator
             }
         } label: {
             HStack(spacing: 5) {
@@ -567,16 +758,64 @@ private struct KeyField: View {
                 HelpTag(help)
             }
         }
-        .onAppear {
-            present = Keychain.exists(account)
+        // Switching tabs tears the field down before it ever loses focus, which used
+        // to drop a pasted key without a trace.
+        .onDisappear(perform: commitNow)
+    }
+
+    @ViewBuilder
+    private var indicator: some View {
+        if status.checking.contains(account) {
+            ProgressView()
+                .controlSize(.small)
+                .helpBubble("Vérification de la clé…")
+        } else if let problem = status.problems[account] {
+            Image(systemName: problem.blocking ? "exclamationmark.circle.fill" : "exclamationmark.triangle.fill")
+                .foregroundStyle(problem.blocking ? Color.red : Color.orange)
+                .helpBubble(problem.message)
+        } else {
+            // Three distinct looks, because the difference between "stored" and
+            // "checked" must not depend on hovering to be understood.
+            Image(systemName: isPresent ? "checkmark.circle.fill" : "circle")
+                .foregroundStyle(isVerified ? Color.green : Color.secondary)
+                .helpBubble(restingHelp)
         }
     }
 
-    private func save() {
+    private var isVerified: Bool {
+        status.validated.contains(account)
+    }
+
+    private var restingHelp: String {
+        guard isPresent else { return "Aucune clé enregistrée" }
+        return isVerified ? "Clé valide" : "Clé enregistrée, pas encore vérifiée"
+    }
+
+    private func scheduleCommit(_ typed: String) {
+        let trimmed = typed.trimmingCharacters(in: .whitespacesAndNewlines)
+        // Tested before cancelling: clearing the field re-enters here, and cancelling
+        // on the way out would kill the very task doing the work.
+        guard trimmed.count >= Self.plausibleLength else { return }
+        pending?.cancel()
+        pending = Task { @MainActor in
+            try? await Task.sleep(for: .milliseconds(600))
+            guard !Task.isCancelled else { return }
+            commit(trimmed)
+        }
+    }
+
+    private func commitNow() {
         let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return }
-        Keychain.set(trimmed, account: account, label: label)
+        pending?.cancel()
+        commit(trimmed)
+    }
+
+    /// The check runs in a task of its own, detached from the debounce: cancelling the
+    /// debounce must never abort a request already in flight, which reported a network
+    /// failure for a key that had in fact just been stored.
+    private func commit(_ trimmed: String) {
         value = ""
-        present = Keychain.exists(account)
+        Task { await status.save(trimmed, account: account, label: label) }
     }
 }
