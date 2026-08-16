@@ -58,3 +58,11 @@ TCC ne mémorise pas « cette app est autorisée » mais une exigence de signatu
 Pour recréer ce certificat sur une autre machine : Trousseau d'accès → Assistant de certification → Créer un certificat, nom `Magneto Code Signing`, type d'identité « Racine auto-signée », type de certificat « Signature de code ». Aucun compte développeur nécessaire, et aucun réglage de confiance à poser, `codesign` accepte la racine auto-signée telle quelle.
 
 `install.sh` affiche l'exigence obtenue en fin d'installation. Si `cdhash` y apparaît, le certificat est absent et les autorisations sauteront au prochain build.
+
+## Licence
+
+MIT augmentée de la [Commons Clause](https://commonsclause.com/).
+
+Concrètement : tu peux utiliser Magneto librement, y compris au travail, l'étudier, le modifier et le partager. La seule chose interdite est de le vendre, ou de vendre un produit ou un service dont la valeur vient pour l'essentiel de Magneto.
+
+Ce n'est donc pas une licence open source au sens de l'Open Source Initiative, mais une licence à source visible. Le code est fourni tel quel, sans garantie.
