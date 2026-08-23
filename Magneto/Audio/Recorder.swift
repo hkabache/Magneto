@@ -1,49 +1,76 @@
 import AVFoundation
 import Foundation
 
+/// What a dictation polls its capture for, whichever path it took.
+@MainActor
+protocol Capture: AnyObject {
+    func poll() -> CaptureState
+    func finish()
+}
+
+struct CaptureState {
+    let level: Float
+    let status: Recorder.Status
+}
+
+/// Picks a capture path at the start of each dictation and publishes what it reports. The
+/// fork exists because the built-in microphone has never failed on `AVAudioRecorder`, while
+/// a Bluetooth link needs a graph that can be rebuilt mid-sentence. Once the resilient path
+/// has proven itself on headphones, it can take over the built-in microphone too and this
+/// fork goes away.
 @MainActor
 final class Recorder: ObservableObject {
-    @Published private(set) var level: Float = 0
-
-    private var recorder: AVAudioRecorder?
-    private var levelTimer: Timer?
-    private(set) var currentURL: URL?
-
-    var duration: TimeInterval {
-        recorder?.currentTime ?? 0
+    /// What the pill is allowed to claim. An input that was asked to record is not yet one
+    /// that answered, and one that answered can stop answering.
+    enum Status {
+        case warmingUp, live, recovering, unresponsive
     }
+
+    @Published private(set) var level: Float = 0
+    @Published private(set) var status: Status = .warmingUp
+
+    private var capture: Capture?
+    private var ticker: Timer?
+    private(set) var currentURL: URL?
 
     func start() throws {
         let url = FileManager.default.temporaryDirectory
             .appendingPathComponent("magneto-\(UUID().uuidString).wav")
-        let settings: [String: Any] = [
-            AVFormatIDKey: kAudioFormatLinearPCM,
-            AVSampleRateKey: 16_000,
-            AVNumberOfChannelsKey: 1,
-            AVLinearPCMBitDepthKey: 16,
-            AVLinearPCMIsFloatKey: false,
-            AVLinearPCMIsBigEndianKey: false,
-        ]
-        let recorder = try AVAudioRecorder(url: url, settings: settings)
-        recorder.isMeteringEnabled = true
-        guard recorder.record() else {
-            throw MagnetoError.micStartFailed
+        let device = InputDevice.current
+        // Logged before the capture exists rather than after: opening a Bluetooth input
+        // takes seconds, and the journal has to show where those seconds went.
+        Log.pipeline.notice(
+            "entrée \(device.transport, privacy: .public) : capture \(device.isBuiltIn ? "simple" : "résiliente", privacy: .public)"
+        )
+        let capture: Capture
+        do {
+            if device.isBuiltIn {
+                capture = try SimpleCapture(url: url)
+            } else {
+                capture = try ResilientCapture(url: url)
+            }
+        } catch {
+            try? FileManager.default.removeItem(at: url)
+            throw error
         }
-        self.recorder = recorder
+        self.capture = capture
         currentURL = url
-        levelTimer = Timer.scheduledTimer(withTimeInterval: 0.05, repeats: true) { [weak self] _ in
+        level = 0
+        status = .warmingUp
+        ticker = Timer.scheduledTimer(withTimeInterval: 0.05, repeats: true) { [weak self] _ in
             Task { @MainActor in
-                self?.updateLevel()
+                self?.tick()
             }
         }
     }
 
     func stop() -> URL? {
-        levelTimer?.invalidate()
-        levelTimer = nil
+        ticker?.invalidate()
+        ticker = nil
+        capture?.finish()
+        capture = nil
         level = 0
-        recorder?.stop()
-        recorder = nil
+        status = .warmingUp
         let url = currentURL
         currentURL = nil
         return url
@@ -55,11 +82,12 @@ final class Recorder: ObservableObject {
         }
     }
 
-    private func updateLevel() {
-        guard let recorder else { return }
-        recorder.updateMeters()
-        let db = recorder.averagePower(forChannel: 0)
-        let linear = pow(10, db / 20)
-        level = max(0, min(1, linear * 4))
+    private func tick() {
+        guard let capture else { return }
+        let state = capture.poll()
+        level = state.level
+        if status != state.status {
+            status = state.status
+        }
     }
 }

@@ -83,8 +83,26 @@ struct OverlayView: View {
     var body: some View {
         HStack(spacing: 10) {
             if app.phase == .recording {
-                LevelBars(level: recorder.level)
-                Text("Enregistrement")
+                switch recorder.status {
+                case .live:
+                    LevelBars(level: recorder.level)
+                    Text("Enregistrement")
+                case .warmingUp:
+                    ProgressView()
+                        .controlSize(.small)
+                    Text("Le micro s'active…")
+                        .foregroundStyle(.orange)
+                case .recovering:
+                    ProgressView()
+                        .controlSize(.small)
+                    Text("Le micro a décroché…")
+                        .foregroundStyle(.orange)
+                case .unresponsive:
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .foregroundStyle(.red)
+                    Text("Le micro ne répond pas")
+                        .foregroundStyle(.red)
+                }
             } else {
                 ProgressView()
                     .controlSize(.small)

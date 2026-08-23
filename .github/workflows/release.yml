@@ -19,6 +19,10 @@ jobs:
     timeout-minutes: 90
     permissions:
       contents: write
+    env:
+      # Épinglée sur la version du paquet SPM : ce sont les outils qui signent le flux
+      # que l'app vérifiera avec la clé publique compilée dedans.
+      SPARKLE_VERSION: "2.9.5"
 
     steps:
       - name: Récupérer le code
@@ -27,8 +31,16 @@ jobs:
       - name: Déduire la version du tag
         run: |
           set -euo pipefail
-          echo "VERSION=${GITHUB_REF_NAME#v}" >> "$GITHUB_ENV"
-          echo "DMG=Magneto-${GITHUB_REF_NAME#v}.dmg" >> "$GITHUB_ENV"
+          VERSION="${GITHUB_REF_NAME#v}"
+          echo "VERSION=$VERSION" >> "$GITHUB_ENV"
+          echo "DMG=Magneto-$VERSION.dmg" >> "$GITHUB_ENV"
+
+          # Le numéro de build est ce que Sparkle compare pour décider qu'une version
+          # est plus récente. Le dériver du tag plutôt que du compteur d'exécutions,
+          # qui repart à 1 si la workflow est un jour renommée : les installations
+          # existantes verraient alors la nouveauté comme plus ancienne qu'elles.
+          IFS=. read -r MAJOR MINOR PATCH <<< "$VERSION"
+          echo "BUILD=$(( ${MAJOR:-0} * 10000 + ${MINOR:-0} * 100 + ${PATCH:-0} ))" >> "$GITHUB_ENV"
 
       - name: Préparer les outils
         run: |
@@ -39,6 +51,14 @@ jobs:
           ls -d /Applications/Xcode*.app
           sudo xcode-select -s "$(ls -d /Applications/Xcode*.app | sort -V | tail -1)"
           xcodebuild -version
+
+          # sign_update ne fait pas partie du paquet SPM, il vient de la distribution
+          # binaire de Sparkle.
+          curl -fsSL -o "$RUNNER_TEMP/sparkle.tar.xz" \
+            "https://github.com/sparkle-project/Sparkle/releases/download/$SPARKLE_VERSION/Sparkle-$SPARKLE_VERSION.tar.xz"
+          mkdir -p "$RUNNER_TEMP/sparkle"
+          tar -xJf "$RUNNER_TEMP/sparkle.tar.xz" -C "$RUNNER_TEMP/sparkle"
+          "$RUNNER_TEMP/sparkle/bin/sign_update" --help > /dev/null
 
       # Le certificat est importé dans un trousseau créé pour l'occasion, et non
       # dans celui du runner : il disparaît avec la machine, et rien ne subsiste
@@ -81,7 +101,7 @@ jobs:
             -configuration Release \
             -derivedDataPath "$RUNNER_TEMP/DerivedData" \
             MARKETING_VERSION="$VERSION" \
-            CURRENT_PROJECT_VERSION="$GITHUB_RUN_NUMBER" \
+            CURRENT_PROJECT_VERSION="$BUILD" \
             build
 
       # Avant la notarisation, la seule étape lente : une règle de nettoyage cassée
@@ -89,12 +109,19 @@ jobs:
       - name: Tester
         run: |
           set -euo pipefail
+          # Les mêmes surcharges qu'à l'étape Compiler, et pas par confort : le scheme
+          # embarque l'app en buildForTesting, donc `test` la recompile. Sans elles les
+          # réglages diffèrent, Xcode réécrit l'Info.plist du bundle qui part en DMG, et
+          # l'app publiée se déclare à la version de project.yml. Sparkle comparant ce
+          # numéro à celui de l'appcast, la mise à jour se reproposerait sans fin.
           xcodebuild test \
             -project Magneto.xcodeproj \
             -scheme Magneto \
             -configuration Release \
             -destination "platform=macOS" \
-            -derivedDataPath "$RUNNER_TEMP/DerivedData"
+            -derivedDataPath "$RUNNER_TEMP/DerivedData" \
+            MARKETING_VERSION="$VERSION" \
+            CURRENT_PROJECT_VERSION="$BUILD"
 
       # Vérifié avant de soumettre : un rejet de notarisation ne dit pas toujours
       # ce qui manque, alors qu'un contrôle local nomme le problème.
@@ -103,6 +130,18 @@ jobs:
           set -euo pipefail
           APP="$RUNNER_TEMP/DerivedData/Build/Products/Release/Magneto.app"
           echo "APP=$APP" >> "$GITHUB_ENV"
+
+          # Le filet : quelle qu'en soit la cause, une app qui n'annonce pas la version
+          # du tag ne doit pas atteindre le DMG. L'appcast, lui, est construit à partir
+          # de $VERSION et $BUILD, donc une divergence ici se paie en boucle de mise à
+          # jour chez l'utilisateur, sans rien de visible côté release.
+          PLIST="$APP/Contents/Info.plist"
+          BUILT_SHORT=$(/usr/libexec/PlistBuddy -c "Print :CFBundleShortVersionString" "$PLIST")
+          BUILT_BUILD=$(/usr/libexec/PlistBuddy -c "Print :CFBundleVersion" "$PLIST")
+          if [ "$BUILT_SHORT" != "$VERSION" ] || [ "$BUILT_BUILD" != "$BUILD" ]; then
+            echo "::error::l'app construite annonce $BUILT_SHORT/$BUILT_BUILD au lieu de $VERSION/$BUILD"
+            exit 1
+          fi
 
           codesign --verify --deep --strict --verbose=2 "$APP"
           codesign -dvv "$APP" 2>&1 | grep -E "Authority|TeamIdentifier|Timestamp"
@@ -115,6 +154,27 @@ jobs:
             echo "::error::get-task-allow présent, Apple rejette cet entitlement"
             exit 1
           fi
+
+          # Sparkle livre ses helpers en ad-hoc. Une régression du script de resignature
+          # ne se verrait qu'au rejet d'Apple, une demi-heure plus tard et sans motif
+          # évident : on la nomme ici. Un chemin disparu fait échouer codesign, ce qui
+          # est le bon comportement si Sparkle réorganise son framework.
+          SPARKLE="$APP/Contents/Frameworks/Sparkle.framework/Versions/B"
+          for nested in \
+            "$SPARKLE/XPCServices/Installer.xpc" \
+            "$SPARKLE/XPCServices/Downloader.xpc" \
+            "$SPARKLE/Autoupdate" \
+            "$SPARKLE/Updater.app"; do
+            info=$(codesign -dvv "$nested" 2>&1)
+            if grep -q "adhoc" <<< "$info"; then
+              echo "::error::$(basename "$nested") est reste signe ad-hoc"
+              exit 1
+            fi
+            if ! grep -q "^Timestamp=" <<< "$info"; then
+              echo "::error::$(basename "$nested") n'a pas d'horodatage securise"
+              exit 1
+            fi
+          done
 
       - name: Construire et signer le DMG
         run: |
@@ -171,11 +231,46 @@ jobs:
           spctl --assess --type execute --verbose=4 "$MOUNT/Magneto.app"
           hdiutil detach "$MOUNT" > /dev/null
 
+      # Après l'agrafage et jamais avant : agrafer réécrit le DMG, donc une signature
+      # calculée plus tôt ne correspondrait plus au fichier que l'app téléchargera,
+      # et Sparkle refuserait la mise à jour sans que rien n'ait l'air cassé.
+      - name: Construire le flux de mise à jour
+        env:
+          SPARKLE_PRIVATE_KEY: ${{ secrets.SPARKLE_PRIVATE_KEY }}
+        run: |
+          set -euo pipefail
+          KEY="$RUNNER_TEMP/sparkle_key"
+          printf '%s' "$SPARKLE_PRIVATE_KEY" > "$KEY"
+          # Rend directement les attributs sparkle:edSignature et length de l'enclosure.
+          ENCLOSURE=$("$RUNNER_TEMP/sparkle/bin/sign_update" "$DMG" --ed-key-file "$KEY")
+          rm -f "$KEY"
+
+          cat > appcast.xml <<XML
+          <?xml version="1.0" encoding="utf-8"?>
+          <rss version="2.0" xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle">
+          <channel>
+          <title>Magneto</title>
+          <item>
+          <title>Magneto $VERSION</title>
+          <pubDate>$(LC_ALL=C date -u "+%a, %d %b %Y %H:%M:%S +0000")</pubDate>
+          <sparkle:version>$BUILD</sparkle:version>
+          <sparkle:shortVersionString>$VERSION</sparkle:shortVersionString>
+          <sparkle:minimumSystemVersion>26.0</sparkle:minimumSystemVersion>
+          <enclosure url="https://github.com/$GITHUB_REPOSITORY/releases/download/$GITHUB_REF_NAME/$DMG" $ENCLOSURE type="application/octet-stream" />
+          </item>
+          </channel>
+          </rss>
+          XML
+
+          # Un flux malformé casserait la mise à jour de tout le monde en silence.
+          python3 -c "import xml.dom.minidom; xml.dom.minidom.parse('appcast.xml')"
+          cat appcast.xml
+
       - name: Publier la release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          gh release create "$GITHUB_REF_NAME" "$DMG" \
+          gh release create "$GITHUB_REF_NAME" "$DMG" appcast.xml \
             --title "Magneto $VERSION" \
             --generate-notes

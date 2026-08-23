@@ -89,7 +89,8 @@ enum RulePass {
             uniquingKeysWith: { first, _ in first }
         )
         let mutable = NSMutableString(string: text)
-        let matches = regex.matches(in: text, range: NSRange(location: 0, length: mutable.length))
+        let length = mutable.length
+        let matches = regex.matches(in: text, range: NSRange(location: 0, length: length))
         for match in matches.reversed() {
             let before = mutable.substring(with: match.range(at: 1))
             var after = mutable.substring(with: match.range(at: 2))
@@ -102,9 +103,17 @@ enum RulePass {
                 after = first.lowercased() + after.dropFirst()
             }
 
+            // An empty side means "nothing to join" only at the edges of the text. In
+            // the middle it means the previous pause already consumed that word, and
+            // joining with nothing glued the two fragments: "je vais... euh... le
+            // faire" came out as "je vais euhle faire".
+            let atEdge = (before.isEmpty && match.range.location == 0)
+                || (after.isEmpty && match.range.location + match.range.length == length)
             let separator: String
-            if before.isEmpty || after.isEmpty {
+            if atEdge {
                 separator = ""
+            } else if before.isEmpty {
+                separator = " "
             } else if opensClause, !danglingWords.contains(normalizedKey(before)) {
                 separator = ", "
             } else {

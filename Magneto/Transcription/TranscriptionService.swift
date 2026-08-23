@@ -81,7 +81,6 @@ enum TranscriptionService {
         clients.append(AppleSpeechClient())
 
         var failures: [String] = []
-        Log.transcription.notice("moteurs : \(clients.map { $0.name }.joined(separator: " puis "), privacy: .public)")
         for client in clients {
             let stopwatch = Stopwatch()
             do {

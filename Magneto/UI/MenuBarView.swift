@@ -4,6 +4,7 @@ import SwiftUI
 
 struct MenuBarView: View {
     @EnvironmentObject private var app: AppState
+    @EnvironmentObject private var updater: Updater
     @State private var tab: Tab = .general
     @State private var setupSkipped = false
     @State private var justCopied = false
@@ -103,10 +104,18 @@ struct MenuBarView: View {
     }
 
     private var footer: some View {
-        HStack {
+        HStack(spacing: 10) {
             Text("Magneto \(Diagnostics.appVersion)")
                 .font(.caption)
                 .foregroundStyle(.secondary)
+            // The words go to the update check, which someone has to find on their own.
+            // The diagnostic keeps a tooltip: it is clicked once, when told to.
+            Button("Vérifier les mises à jour") {
+                updater.check()
+            }
+            .buttonStyle(.link)
+            .font(.caption)
+            .disabled(!updater.canCheck)
             Spacer()
             Button {
                 Task {
@@ -116,10 +125,7 @@ struct MenuBarView: View {
                     diagnosticsCopied = false
                 }
             } label: {
-                Label(
-                    diagnosticsCopied ? "Copié" : "Diagnostic",
-                    systemImage: diagnosticsCopied ? "checkmark" : "stethoscope"
-                )
+                Image(systemName: diagnosticsCopied ? "checkmark" : "stethoscope")
             }
             .help("Copier le déroulé des dernières dictées, à joindre à un signalement. Le texte dicté n'y figure jamais.")
             Button("Quitter") {

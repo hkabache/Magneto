@@ -29,6 +29,18 @@ struct RulePassTests {
         #expect(clean("je vais... le faire") == "Je vais le faire")
     }
 
+    @Test("two pauses in a row keep the words around them apart")
+    func consecutivePauses() {
+        #expect(clean("je vais... euh... le faire") == "Je vais euh le faire")
+        #expect(clean("du coup... voilà... on y va") == "Du coup, voilà on y va")
+        #expect(clean("bon... alors... on y va") == "Bon, alors on y va")
+    }
+
+    @Test("a pause opening the text is simply removed")
+    func leadingPause() {
+        #expect(clean("... bonjour tout le monde") == "Bonjour tout le monde")
+    }
+
     @Test("a pause right after punctuation is dropped")
     func pauseAfterPunctuation() {
         #expect(clean("bonjour,... ça va") == "Bonjour, ça va")

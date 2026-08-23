@@ -13,17 +13,19 @@ macOS 26 minimum, Mac Apple Silicon. L'app est signée et notarisée par Apple :
 
 L'accessibilité sert au collage automatique. Sans elle Magneto fonctionne quand même, mais le texte se contente d'arriver dans le presse-papiers et il faut faire Cmd+V soi-même.
 
-Les mises à jour ne sont pas encore automatiques : chaque version est publiée sur la [page des releases](https://github.com/hkabache/Magneto/releases), et s'installe en remplaçant l'app.
+Pour mettre à jour, **Vérifier les mises à jour** en bas du popover : Magneto interroge GitHub, propose la nouvelle version s'il y en a une, l'installe et se relance. Rien ne part sans ce clic, il n'y a aucune vérification en arrière-plan.
+
+Une mise à jour n'est installée que si elle est signée par une clé privée qui ne quitte jamais mes secrets, la clé publique correspondante étant compilée dans l'app. Quelqu'un qui prendrait le contrôle du dépôt pourrait publier ce qu'il veut, Magneto refuserait de l'installer.
 
 ## Pourquoi
 
 **Gratuite, et elle le restera.** La licence interdit de la vendre.
 
-**Sans aucune clé, elle ne passe aucun appel réseau.** Le moteur de transcription d'Apple et le nettoyage par règles tournent entièrement sur ta machine. Une clé API n'est utile que pour monter en qualité, et reste facultative.
+**Sans aucune clé, ton audio ne quitte pas ta machine.** Le moteur de transcription d'Apple et le nettoyage par règles tournent en local. Seule exception, une fois : si le modèle de dictée française n'est pas déjà installé sur le Mac, macOS le télécharge chez Apple à la première utilisation. Une clé API n'est utile que pour monter en qualité, et reste facultative.
 
 **Tu paies l'usage, pas un abonnement.** Les services équivalents se facturent au mois, que tu dictes ou non. Ici tu règles directement le fournisseur, au tarif public et pour les secondes que tu as réellement dictées, sans intermédiaire qui prend sa marge au passage.
 
-**Tes clés, ton audio.** Les clés sont les tiennes et vivent dans le trousseau macOS. L'audio part de ton Mac vers le fournisseur que tu as choisi, et nulle part ailleurs : aucun serveur intermédiaire, aucun compte à créer, aucune télémétrie, aucun outil d'analytique. Les seules adresses que le code contacte sont `api.elevenlabs.io`, `api.mistral.ai` et `api.anthropic.com`, et le code est public pour que tu puisses le vérifier plutôt que me croire.
+**Tes clés, ton audio.** Les clés sont les tiennes et vivent dans le trousseau macOS. L'audio part de ton Mac vers le fournisseur que tu as choisi, et nulle part ailleurs : aucun serveur intermédiaire, aucun compte à créer, aucune télémétrie, aucun outil d'analytique. Pour dicter, les seules adresses contactées sont `api.elevenlabs.io`, `api.mistral.ai` et `api.anthropic.com`. S'y ajoutent Apple, une seule fois et seulement si le modèle de dictée local doit être installé, et GitHub, uniquement quand tu cliques sur « Vérifier les mises à jour », le temps de lire le fichier qui décrit la dernière version et de télécharger le DMG. Le code est public pour que tu puisses le vérifier plutôt que me croire.
 
 C'est la différence de fond avec un service qui mutualise ses propres clés : au lieu d'ignorer ce que devient ta voix, tu contractes directement avec le fournisseur, tu lis ses conditions, et tu révoques ta clé quand tu veux.
 
@@ -74,7 +76,13 @@ Les tests couvrent ce qui décide du texte livré sans passer par le réseau : l
 
 Les deux scripts compilent dans `~/Library/Developer/Xcode/DerivedData/Magneto` et suppriment la copie intermédiaire de l'app : Spotlight indexe tout `.app` qu'il trouve, et une recherche « Magneto » dans le Finder doit renvoyer une seule icône.
 
-Un tag `v*` déclenche la release : tests, DMG signé, notarisation par Apple, agrafage du ticket, publication.
+Un tag `v*` déclenche la release : tests, DMG signé, notarisation par Apple, agrafage du ticket, signature du flux Sparkle, publication du DMG et de l'`appcast.xml` que l'app viendra lire.
+
+### Clés de mise à jour
+
+La paire EdDSA de Sparkle est indépendante du certificat Apple : la clé publique est dans `project.yml`, donc compilée dans chaque copie de l'app, et la clé privée n'apparaît nulle part dans le dépôt.
+
+La perdre n'est pas fatal tant que le certificat Developer ID est intact : Sparkle sait faire tourner les clés, en publiant une version qui change soit le certificat Apple, soit la paire EdDSA, jamais les deux d'un coup. Perdre les deux en même temps, en revanche, obligerait tout le monde à réinstaller l'app à la main. Une seule paire suffit pour toutes les apps qu'on signerait avec Sparkle.
 
 ### Signature et permissions
 

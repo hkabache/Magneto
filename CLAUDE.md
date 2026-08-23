@@ -27,7 +27,7 @@ resulting Debug and Release `Magneto.app` copies as real applications, so search
 
 Always verify compilation with xcodebuild before declaring a task done. Fix new warnings immediately.
 
-Never launch or kill the app yourself unless explicitly asked: the app is ad-hoc signed, so every rebuild changes the code signature and macOS re-prompts microphone/accessibility permissions. The user manages launches.
+Never launch or kill the app yourself unless explicitly asked: the user keeps a copy running to dictate with, and killing it costs them the tool they are talking to you through.
 
 ## Layout
 
@@ -36,13 +36,16 @@ project.yml                        XcodeGen spec (source of truth for build sett
 Magneto/
   MagnetoApp.swift                 @main, MenuBarExtra (.window style)
   AppState.swift                   state machine idle/recording/transcribing, pipeline orchestration
-  Audio/Recorder.swift             AVAudioRecorder wrapper, level metering
+  Audio/Recorder.swift             picks a capture path per dictation, publishes level and status
+  Audio/SimpleCapture.swift        AVAudioRecorder, built-in microphone only
+  Audio/ResilientCapture.swift     AVCaptureSession, rebuilds a dead or stalled stream
+  Audio/InputDevice.swift          CoreAudio transport of the default input
   Transcription/                   TranscriptionClient protocol + chain + 3 clients
   PostProcessing/RulePass.swift    deterministic regex cleanup (ellipsis artifacts, FR typography)
   PostProcessing/LLMPass.swift     LLM cleanup pass, strict "correct, never rewrite" prompt
   Output/Paster.swift              transient pasteboard + CGEvent Cmd+V + clipboard restore
   UI/                              MenuBarView (popover with tabs), OverlayPanel (NSPanel pill)
-  Support/                         AppSettings, Keychain, Permissions, Hotkeys, CapsLockDelay, Log, Diagnostics
+  Support/                         AppSettings, Keychain, Permissions, Hotkeys, CapsLockDelay, Log, Diagnostics, Updater
 MagnetoTests/                      pure-logic tests, no network, no host app
 ```
 
@@ -60,10 +63,13 @@ for Debug would break the signature TCC pins its grants to.
 - The paste flow must never block on the LLM pass: on LLM failure/timeout, paste the rule-cleaned text.
 - Conventional commits (feat:/fix:/docs:/refactor:/chore:), French commit messages.
 - Never commit or push without an explicit request from the user.
+- Capture never goes through `AVAudioEngine`: reading its `inputNode` was measured at 3146 ms on AirPods
+  against 246 ms for `AVCaptureSession`, because macOS publishes a Bluetooth headset as a microphone
+  device and a separate output device, and the engine aggregates the two before handing over a node.
+- Sparkle only checks when the button is pressed (`SUEnableAutomaticChecks` false). The README states which hosts are contacted and when, so anything that widens that has to be reflected there in the same change.
 
 ## Known deferred items
 
 - Apple SpeechAnalyzer vocabulary biasing (AnalysisContext.contextualStrings) intentionally omitted: unproven on SpeechTranscriber, vocabulary is enforced by keyterms + LLM pass instead.
 - App language is system-driven (French strings hardcoded); EN localization via String Catalog is backlog.
-- Ad-hoc signing: switching to a free Apple Development certificate keeps TCC grants across rebuilds.
 - macOS 27 "Advanced Dictation" (AFM 3 Core Advanced) not yet exposed to third-party Speech API; re-evaluate at GM.
