@@ -59,3 +59,24 @@ struct LLMPassTests {
         ))
     }
 }
+
+/// A flat ceiling was cutting off exactly the dictations the pass has the most to correct:
+/// five minutes of speech is around three thousand characters, and the model rewrites all
+/// of them before answering.
+@Suite("Budget du nettoyage IA")
+struct LLMBudgetTests {
+    @Test("une dictée de deux lignes n'attend pas dix secondes")
+    func shortDictationWaitsLittle() {
+        #expect(LLMPass.timeoutBudget(for: String(repeating: "a", count: 124)) < 2.5)
+    }
+
+    @Test("une dictée de cinq minutes a le temps d'être nettoyée")
+    func longDictationGetsTime() {
+        #expect(LLMPass.timeoutBudget(for: String(repeating: "a", count: 3_000)) > 8)
+    }
+
+    @Test("le budget reste borné, quelle que soit la longueur")
+    func budgetStaysBounded() {
+        #expect(LLMPass.timeoutBudget(for: String(repeating: "a", count: 200_000)) == 30)
+    }
+}

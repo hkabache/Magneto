@@ -12,16 +12,30 @@ enum LLMPass {
         }
         let system = systemPrompt(aggressiveFillers: aggressiveFillers)
         let user = userMessage(text: text, vocabulary: vocabulary)
-        let maxTokens = min(4000, max(300, text.count))
+        // A ceiling that truncates the answer gets the whole pass thrown away by `isSane`,
+        // so it sits well above what the longest dictation can produce.
+        let maxTokens = min(8_000, max(300, text.count))
+        let budget = timeoutBudget(for: text)
 
-        return try await withTimeout(seconds: 10) {
+        return try await withTimeout(seconds: budget) {
             switch provider {
             case .mistral:
-                return try await callMistral(key: key, system: system, user: user, maxTokens: maxTokens)
+                return try await callMistral(key: key, system: system, user: user, maxTokens: maxTokens, timeout: budget)
             case .anthropic:
-                return try await callAnthropic(key: key, system: system, user: user, maxTokens: maxTokens)
+                return try await callAnthropic(key: key, system: system, user: user, maxTokens: maxTokens, timeout: budget)
             }
         }
+    }
+
+    /// The pass rewrites the whole text, so what it costs follows the length: measured at
+    /// roughly 750 ms of round trip plus 1.5 ms per character. A flat ceiling serves no one
+    /// here. Ten seconds leaves a two-line dictation hanging for nothing, and a five-minute
+    /// one is three thousand characters, so it would be cut off every time, precisely where
+    /// the pass has the most to correct. The budget therefore follows the same shape, with
+    /// room for a slow day, and stops at half a minute because past that the answer will be
+    /// refused anyway.
+    static func timeoutBudget(for text: String) -> Double {
+        min(30, 1.5 + 0.003 * Double(text.count))
     }
 
     /// Guards against the two known failure modes: paraphrasing (length drift) and
@@ -89,7 +103,7 @@ enum LLMPass {
         return message
     }
 
-    private static func callMistral(key: String, system: String, user: String, maxTokens: Int) async throws -> String {
+    private static func callMistral(key: String, system: String, user: String, maxTokens: Int, timeout: Double) async throws -> String {
         struct Body: Encodable {
             struct Message: Encodable {
                 let role: String
@@ -117,7 +131,7 @@ enum LLMPass {
         request.httpMethod = "POST"
         request.setValue("Bearer \(key)", forHTTPHeaderField: "Authorization")
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.timeoutInterval = 10
+        request.timeoutInterval = timeout
         let body = Body(
             model: "mistral-small-latest",
             temperature: 0,
@@ -137,7 +151,7 @@ enum LLMPass {
         return content
     }
 
-    private static func callAnthropic(key: String, system: String, user: String, maxTokens: Int) async throws -> String {
+    private static func callAnthropic(key: String, system: String, user: String, maxTokens: Int, timeout: Double) async throws -> String {
         struct Body: Encodable {
             struct Message: Encodable {
                 let role: String
@@ -165,7 +179,7 @@ enum LLMPass {
         request.setValue(key, forHTTPHeaderField: "x-api-key")
         request.setValue("2023-06-01", forHTTPHeaderField: "anthropic-version")
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.timeoutInterval = 10
+        request.timeoutInterval = timeout
         let body = Body(
             model: "claude-haiku-4-5",
             max_tokens: maxTokens,
