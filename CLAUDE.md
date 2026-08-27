@@ -78,7 +78,12 @@ for Debug would break the signature TCC pins its grants to.
 - Capture never goes through `AVAudioEngine`: reading its `inputNode` was measured at 3146 ms on AirPods
   against 246 ms for `AVCaptureSession`, because macOS publishes a Bluetooth headset as a microphone
   device and a separate output device, and the engine aggregates the two before handing over a node.
-- Sparkle only checks when the button is pressed (`SUEnableAutomaticChecks` false). The README states which hosts are contacted and when, so anything that widens that has to be reflected there in the same change.
+- Sparkle checks weekly on its own and never opens a window to announce it: `GentleReminders` declines the
+  scheduled alert and the popover carries the version instead, because a window taking focus takes the
+  synthesized Cmd+V of a dictation with it. Its delegate methods are optional and called by selector, so a
+  Swift rename disables the feature in silence; `UpdaterTests` pins the four selectors. The README states
+  which hosts are contacted and when, so anything that widens that has to be reflected there in the same
+  change.
 
 ## Known deferred items
 

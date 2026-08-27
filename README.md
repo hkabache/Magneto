@@ -26,7 +26,7 @@ Magneto n'ouvre aucune fenêtre : son icône s'installe dans la barre de menus, 
 
 L'accessibilité sert au collage automatique. Sans elle Magneto fonctionne quand même, mais le texte se contente d'arriver dans le presse-papiers et il faut faire Cmd+V soi-même.
 
-Pour mettre à jour, **Vérifier les mises à jour** en bas du popover : Magneto interroge GitHub, propose la nouvelle version s'il y en a une, l'installe et se relance. Rien ne part sans ce clic, il n'y a aucune vérification en arrière-plan.
+Une fois par semaine, Magneto regarde s'il existe une version plus récente, et n'ouvre aucune fenêtre pour le dire : quand il y en a une, le bas du popover propose **Mettre à jour vers…**. Le clic ouvre la fenêtre de mise à jour, avec la liste de ce qui change, et c'est là que l'installation se décide. Rien ne s'installe tout seul, et **Vérifier les mises à jour** reste là pour forcer le contrôle sans attendre.
 
 ## Pourquoi
 
@@ -38,7 +38,7 @@ Pour mettre à jour, **Vérifier les mises à jour** en bas du popover : Magneto
 
 **Tes clés, ton audio.** Les clés sont les tiennes et vivent dans le trousseau macOS. L'audio part de ton Mac vers le fournisseur que tu as choisi, et nulle part ailleurs : aucun serveur intermédiaire, aucun compte à créer, aucune télémétrie, aucun outil d'analytique.
 
-Pour dicter, la seule adresse contactée est `api.elevenlabs.io`, et un seul appel réseau par dictée. S'y ajoutent Apple, une seule fois et seulement si le modèle de dictée local doit être installé, et GitHub, uniquement quand tu cliques sur « Vérifier les mises à jour », le temps de lire le fichier qui décrit la dernière version et de télécharger le DMG. Le code est public pour que tu puisses le vérifier plutôt que me croire.
+Pour dicter, la seule adresse contactée est `api.elevenlabs.io`, et un seul appel réseau par dictée. S'y ajoutent Apple, une seule fois et seulement si le modèle de dictée local doit être installé, et GitHub, une fois par semaine et à chaque clic sur « Vérifier les mises à jour », le temps de lire le fichier qui décrit la dernière version, puis de télécharger le DMG si tu acceptes la mise à jour. Le code est public pour que tu puisses le vérifier plutôt que me croire.
 
 C'est la différence de fond avec un service qui mutualise ses propres clés : au lieu d'ignorer ce que devient ta voix, tu contractes directement avec le fournisseur, tu lis ses conditions, et tu révoques ta clé quand tu veux.
 

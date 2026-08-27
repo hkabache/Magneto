@@ -54,16 +54,25 @@ targets:
         # and every dialog Sparkle draws came out in English on a French Mac. Declaring
         # the localization without shipping resources for it is what Sparkle does for
         # its own helper: CFBundleLocalizations is what preferredLocalizationsFromArray
-        # matches on, and the framework then picks its fr.lproj.
-        CFBundleDevelopmentRegion: fr
+        # matches on, and the framework then picks its fr.lproj. It has to be this key
+        # and not CFBundleDevelopmentRegion, which Xcode overwrites from
+        # DEVELOPMENT_LANGUAGE whatever the plist says. Left at en on purpose: it is the
+        # fallback when nothing matches, so an English Mac keeps Sparkle in English.
         CFBundleLocalizations: [fr]
         SUFeedURL: https://github.com/hkabache/Magneto/releases/latest/download/appcast.xml
         # Public by design: it is what verifies that an update was signed by the
         # private key, and it ships inside every copy of the app.
         SUPublicEDKey: gzuXkr8cMOTG6OeKM/lreNPh/zm6+OVvb/mNnNgGQhA=
-        # Left unset, Sparkle asks on the second launch whether it may check on its
-        # own. The check belongs to the button, so the question never gets asked.
-        SUEnableAutomaticChecks: false
+        # True rather than left unset: unset makes Sparkle ask on the second launch
+        # whether it may check, and someone who never answers that question never gets
+        # an update either. Nothing is shown when a check finds something, the popover
+        # announces it, see GentleReminders.
+        SUEnableAutomaticChecks: true
+        # A week. The daily default measures a release cadence this app does not have.
+        SUScheduledCheckInterval: 604800
+        # Drops the "download and install updates automatically" checkbox from the
+        # update window: a version is installed because someone asked for it.
+        SUAllowsAutomaticUpdates: false
         # Already the default. Written down because it is the only way Sparkle could
         # send anything about the machine, and the README promises it does not.
         SUEnableSystemProfiling: false

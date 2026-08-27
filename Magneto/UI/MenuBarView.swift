@@ -113,12 +113,21 @@ struct MenuBarView: View {
             Text("Magneto \(version)")
                 .font(.caption)
                 .foregroundStyle(.secondary)
-            Button("Vérifier les mises à jour") {
-                updater.check()
+            if let pending = updater.pendingVersion {
+                Button("Mettre à jour vers \(pending)") {
+                    updater.check()
+                }
+                .buttonStyle(.borderedProminent)
+                .controlSize(.small)
+                .font(.caption)
+            } else {
+                Button("Vérifier les mises à jour") {
+                    updater.check()
+                }
+                .buttonStyle(.link)
+                .font(.caption)
+                .disabled(!updater.canCheck)
             }
-            .buttonStyle(.link)
-            .font(.caption)
-            .disabled(!updater.canCheck)
             Spacer()
             Button("Quitter") {
                 NSApplication.shared.terminate(nil)
