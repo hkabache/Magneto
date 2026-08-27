@@ -19,16 +19,31 @@ struct VocabularyTests {
         #expect(ElevenLabsClient.keyterms(from: (0..<150).map { "terme\($0)" }).count == 100)
     }
 
-    @Test("Voxtral takes single words, so multi-word terms are split")
-    func contextBiasSplits() {
-        #expect(VoxtralClient.contextBias(from: ["Claude Haiku"]) == ["Claude", "Haiku"])
-        #expect(VoxtralClient.contextBias(from: ["ElevenLabs Scribe v2"]) == ["ElevenLabs", "Scribe", "v2"])
-        #expect(VoxtralClient.contextBias(from: ["dv1,"]) == ["dv1"])
+
+}
+
+/// The journal's counters are what make a day of dictation readable at a glance, so they
+/// have to count edits and not merely differences: a single inserted word must not read as
+/// a rewrite of the whole sentence that follows it.
+@Suite("DictationJournal")
+struct DictationJournalTests {
+    @Test("an identical text counts no change")
+    func identical() {
+        #expect(DictationJournal.changedWords(from: "bonjour tout le monde", to: "bonjour tout le monde") == 0)
     }
 
-    @Test("Voxtral context_bias is deduplicated and capped")
-    func contextBiasCapped() {
-        #expect(VoxtralClient.contextBias(from: ["Mistral", "mistral"]) == ["Mistral"])
-        #expect(VoxtralClient.contextBias(from: (0..<150).map { "terme\($0)" }).count == 100)
+    @Test("one substitution counts one word")
+    func substitution() {
+        #expect(DictationJournal.changedWords(from: "bonjour tout le monde", to: "bonjour tout le peuple") == 1)
+    }
+
+    @Test("an inserted word does not shift everything after it")
+    func insertion() {
+        #expect(DictationJournal.changedWords(from: "je vais le faire", to: "je vais bien le faire") == 1)
+    }
+
+    @Test("an emptied text counts every word it had")
+    func emptied() {
+        #expect(DictationJournal.changedWords(from: "bonjour tout le monde", to: "") == 4)
     }
 }

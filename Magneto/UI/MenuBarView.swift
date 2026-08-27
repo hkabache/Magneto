@@ -8,7 +8,6 @@ struct MenuBarView: View {
     @State private var tab: Tab = .general
     @State private var setupSkipped = false
     @State private var justCopied = false
-    @State private var diagnosticsCopied = false
     /// Owned here rather than by the tab: a verdict obtained once must survive leaving
     /// the tab, otherwise every return showed keys as unverified again.
     @StateObject private var keyStatus = KeyStatus()
@@ -62,7 +61,7 @@ struct MenuBarView: View {
             .padding(.bottom, 6)
             // Each tab sets its own height: a form must never scroll to show its rows.
             switch tab {
-            case .general: GeneralTab(onOpenKeys: { tab = .keys })
+            case .general: GeneralTab()
             case .vocabulary: VocabularyTab(onOpenKeys: { tab = .keys })
             case .keys: KeysTab(status: keyStatus)
             }
@@ -103,13 +102,17 @@ struct MenuBarView: View {
         }
     }
 
+    /// Displayed only, so it is read where it is shown rather than through a type of
+    /// its own.
+    private var version: String {
+        Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "?"
+    }
+
     private var footer: some View {
         HStack(spacing: 10) {
-            Text("Magneto \(Diagnostics.appVersion)")
+            Text("Magneto \(version)")
                 .font(.caption)
                 .foregroundStyle(.secondary)
-            // The words go to the update check, which someone has to find on their own.
-            // The diagnostic keeps a tooltip: it is clicked once, when told to.
             Button("Vérifier les mises à jour") {
                 updater.check()
             }
@@ -117,17 +120,6 @@ struct MenuBarView: View {
             .font(.caption)
             .disabled(!updater.canCheck)
             Spacer()
-            Button {
-                Task {
-                    Paster.copyPlain(await Diagnostics.report())
-                    diagnosticsCopied = true
-                    try? await Task.sleep(for: .seconds(1.5))
-                    diagnosticsCopied = false
-                }
-            } label: {
-                Image(systemName: diagnosticsCopied ? "checkmark" : "stethoscope")
-            }
-            .help("Copier le déroulé des dernières dictées, à joindre à un signalement. Le texte dicté n'y figure jamais.")
             Button("Quitter") {
                 NSApplication.shared.terminate(nil)
             }
@@ -363,13 +355,10 @@ private extension View {
 }
 
 private struct GeneralTab: View {
-    let onOpenKeys: () -> Void
 
     @EnvironmentObject private var app: AppState
     @EnvironmentObject private var settings: AppSettings
     @State private var launchAtLogin = SMAppService.mainApp.status == .enabled
-    /// Read on appear, not on every redraw: keys are edited from another tab.
-    @State private var providersWithKey: [PostProcessProvider] = []
 
     var body: some View {
         Form {
@@ -401,66 +390,30 @@ private struct GeneralTab: View {
             }
 
             Section {
-                // Shown off, not ticked-but-greyed: a ticked box that produces
-                // nothing is what made this option misleading. The stored choice
-                // is kept, so adding a key brings it back as it was.
-                HelpRow("Activer", help: "Retire les hésitations, corrige ponctuation et nombres") {
-                    Toggle(
-                        "",
-                        isOn: providersWithKey.isEmpty ? Binding.constant(false) : $settings.postProcessEnabled
-                    )
-                    .labelsHidden()
-                    // Only the switch is disabled. Disabling the whole row killed the
-                    // help tag with it, hiding what the option does exactly when it
-                    // cannot be turned on and the question is most likely.
-                    .disabled(providersWithKey.isEmpty)
-                }
-                // Dimming rather than disabling: the system disabled state alone is too
-                // discreet, the switch being already off, and opacity leaves the help
-                // tag reachable.
-                .opacity(providersWithKey.isEmpty ? 0.45 : 1)
-                if !providersWithKey.isEmpty, settings.postProcessEnabled {
-                    // Every model stays listed, so the second one advertises itself
-                    // as available once its key is filled in.
-                    Picker("Modèle", selection: $settings.postProcessProvider) {
-                        ForEach(PostProcessProvider.allCases) { provider in
-                            Text(providersWithKey.contains(provider) ? provider.label : "\(provider.label) (clé requise)")
-                                .disabled(!providersWithKey.contains(provider))
-                                .tag(provider)
-                        }
-                    }
-                    // Enforces the greyed rows: a keyless model never sticks, even
-                    // if the popup lets it be picked.
-                    .onChange(of: settings.postProcessProvider) { previous, selected in
-                        if !providersWithKey.contains(selected) {
-                            settings.postProcessProvider = previous
-                        }
-                    }
-                    HelpRow("Retirer les connecteurs", help: "Retire les connecteurs creux : du coup, en fait, genre, voilà") {
-                        Toggle("", isOn: $settings.aggressiveFillers)
-                            .labelsHidden()
-                    }
-                }
-            } header: {
-                Text("Nettoyage par IA")
-            } footer: {
-                if providersWithKey.isEmpty {
-                    KeyRequiredNotice(
-                        text: "Pour activer cette fonctionnalité, une clé API de nettoyage est nécessaire, à saisir dans l'onglet [Clés API](magneto:keys).",
-                        onOpenKeys: onOpenKeys
-                    )
-                }
-            }
-
-            // Its own section: it runs on rules, always, with or without a key, and
-            // grouping it under the IA suggested a dependency that does not exist.
-            Section {
-                HelpRow("Typographie française", help: "Écrit « Tu viens ? » plutôt que « Tu viens? »") {
-                    Toggle("", isOn: $settings.frenchTypography)
+                HelpRow(
+                    "Guillemets droits",
+                    help: "Remplace « » et les guillemets courbes par des \". C'est la seule modification apportée au texte du moteur : décoché, il est collé tel quel"
+                ) {
+                    Toggle("", isOn: $settings.straightQuotes)
                         .labelsHidden()
                 }
             } header: {
-                Text("Typographie")
+                Text("Texte")
+            }
+
+            // Its own section, and worded plainly: this is the only setting that writes
+            // what was dictated to the disk, and someone ticking it deserves to know
+            // before rather than after.
+            Section {
+                HelpRow(
+                    "Journal des dictées",
+                    help: "Écrit chaque dictée, son audio et son texte avant et après les règles dans ~/Library/Application Support/Magneto. Le texte y est en clair, compte environ 2 Mo par minute dictée, et rien n'est écrit quand c'est décoché"
+                ) {
+                    Toggle("", isOn: $settings.dictationJournal)
+                        .labelsHidden()
+                }
+            } header: {
+                Text("Diagnostic")
             }
 
             if !app.accessibilityGranted {
@@ -480,12 +433,6 @@ private struct GeneralTab: View {
         .helpTagOverlay()
         .onAppear {
             launchAtLogin = SMAppService.mainApp.status == .enabled
-            providersWithKey = PostProcessProvider.allCases.filter { Keychain.exists($0.keychainAccount) }
-            // A key removed after being selected would leave the picker on a model
-            // that silently cannot run.
-            if let fallback = providersWithKey.first, !providersWithKey.contains(settings.postProcessProvider) {
-                settings.postProcessProvider = fallback
-            }
         }
     }
 }
@@ -496,9 +443,9 @@ private struct VocabularyTab: View {
     @EnvironmentObject private var settings: AppSettings
     @State private var newWord = ""
     @State private var selection: String?
-    /// Vocabulary reaches an engine as ElevenLabs keyterms, Voxtral context bias or
-    /// the cleanup prompt. Without a single key it goes nowhere, and a list that looks
-    /// live is worse than one that says it is not.
+    /// Vocabulary reaches an engine as ElevenLabs keyterms, or as the cleanup prompt.
+    /// Without a single key it goes nowhere, and a list that looks live is worse than
+    /// one that says it is not.
     @State private var hasAnyKey = false
 
     var body: some View {
@@ -562,8 +509,6 @@ private struct VocabularyTab: View {
         .frame(height: 290)
         .onAppear {
             hasAnyKey = Keychain.exists(Keychain.elevenLabs)
-                || Keychain.exists(Keychain.mistral)
-                || Keychain.exists(Keychain.anthropic)
         }
     }
 
@@ -641,7 +586,7 @@ private final class KeyStatus: ObservableObject {
     /// but probes nothing, and a green tick claiming validity would then be a guess.
     @Published private(set) var validated: Set<String> = []
 
-    private static let accounts = [Keychain.elevenLabs, Keychain.mistral, Keychain.anthropic]
+    private static let accounts = [Keychain.elevenLabs]
 
     /// Probes anything still without a verdict, so opening the tab is enough to know
     /// where each key stands. A verdict is kept for the whole session, so this costs
@@ -691,38 +636,12 @@ private struct KeysTab: View {
                     account: Keychain.elevenLabs,
                     status: status
                 )
-                KeyField(
-                    label: "Mistral",
-                    help: "Voxtral, moteur de secours. Même clé que le nettoyage",
-                    account: Keychain.mistral,
-                    status: status
-                )
             } header: {
                 Text("Transcription")
             } footer: {
-                Text("Sans aucune clé, le moteur Apple hors ligne prend le relais.")
+                Text("Sans clé, le moteur Apple hors ligne prend le relais.")
             }
 
-            // Mistral kept in second position, as in the section above: the same key
-            // then sits on the same row in both, which shows the link without a word.
-            Section {
-                KeyField(
-                    label: "Anthropic",
-                    help: "Claude Haiku",
-                    account: Keychain.anthropic,
-                    status: status
-                )
-                KeyField(
-                    label: "Mistral",
-                    help: "Mistral Small. Même clé que la transcription",
-                    account: Keychain.mistral,
-                    status: status
-                )
-            } header: {
-                Text("Nettoyage")
-            } footer: {
-                Text("Clés stockées dans le trousseau macOS.")
-            }
         }
         .formStyle(.grouped)
         .fixedSize(horizontal: false, vertical: true)

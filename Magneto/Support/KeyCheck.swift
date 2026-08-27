@@ -55,8 +55,6 @@ enum KeyCheck {
     private static func provider(_ account: String) -> String {
         switch account {
         case Keychain.elevenLabs: return "ElevenLabs"
-        case Keychain.mistral: return "Mistral"
-        case Keychain.anthropic: return "Anthropic"
         default: return account
         }
     }
@@ -65,19 +63,6 @@ enum KeyCheck {
         switch account {
         case Keychain.elevenLabs:
             return elevenLabsProbe(key: key)
-        case Keychain.mistral:
-            guard let url = URL(string: "https://api.mistral.ai/v1/models") else { return nil }
-            var request = URLRequest(url: url)
-            request.timeoutInterval = 15
-            request.setValue("Bearer \(key)", forHTTPHeaderField: "Authorization")
-            return request
-        case Keychain.anthropic:
-            guard let url = URL(string: "https://api.anthropic.com/v1/models") else { return nil }
-            var request = URLRequest(url: url)
-            request.timeoutInterval = 15
-            request.setValue(key, forHTTPHeaderField: "x-api-key")
-            request.setValue("2023-06-01", forHTTPHeaderField: "anthropic-version")
-            return request
         default:
             return nil
         }

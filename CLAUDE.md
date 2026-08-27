@@ -6,7 +6,7 @@ This file provides guidance to Claude Code when working with this repository.
 
 Magneto is a minimal macOS menu bar dictation app, native Swift/SwiftUI, single target, one SPM dependency (KeyboardShortcuts). Distributed outside the App Store: Developer ID signed, notarized, published as a DMG by the release workflow on a `v*` tag.
 
-Pipeline: global hotkey toggle → AVAudioRecorder (wav 16kHz mono) → transcription chain (ElevenLabs Scribe v2 → Voxtral → Apple SpeechAnalyzer) → rule-based cleanup → optional LLM cleanup (Mistral Small / Claude Haiku) → paste at cursor via synthesized Cmd+V.
+Pipeline: global hotkey toggle → AVAudioRecorder (wav 16kHz mono) → transcription chain (ElevenLabs Scribe v2 → Apple SpeechAnalyzer) → quote straightening → paste at cursor via synthesized Cmd+V.
 
 ## Build
 
@@ -40,12 +40,11 @@ Magneto/
   Audio/SimpleCapture.swift        AVAudioRecorder, built-in microphone only
   Audio/ResilientCapture.swift     AVCaptureSession, rebuilds a dead or stalled stream
   Audio/InputDevice.swift          CoreAudio transport of the default input
-  Transcription/                   TranscriptionClient protocol + chain + 3 clients
-  PostProcessing/RulePass.swift    deterministic regex cleanup (ellipsis artifacts, FR typography)
-  PostProcessing/LLMPass.swift     LLM cleanup pass, strict "correct, never rewrite" prompt
+  Transcription/                   TranscriptionClient protocol + chain + 2 clients
+  PostProcessing/QuotePass.swift   straightens quotation marks, and nothing else
   Output/Paster.swift              transient pasteboard + CGEvent Cmd+V + clipboard restore
   UI/                              MenuBarView (popover with tabs), OverlayPanel (NSPanel pill)
-  Support/                         AppSettings, Keychain, Permissions, Hotkeys, CapsLockDelay, Log, Diagnostics, Updater
+  Support/                         AppSettings, Keychain, Permissions, Hotkeys, CapsLockDelay, Log, Updater, DictationJournal
 MagnetoTests/                      pure-logic tests, no network, no host app
 ```
 
@@ -57,10 +56,21 @@ for Debug would break the signature TCC pins its grants to.
 
 - UI strings are French (personal tool). Code and identifiers in English.
 - API keys go through `Keychain` only. Never log them, never store them in UserDefaults.
+- The system journal never carries the dictated text, and is read with the `log show` command the README
+  prints. `DictationJournal` is the only place that text lands, in clear and with the audio, and only while
+  its setting is on. It is the instrument every measured decision in this file came from, so keep it usable.
 - No `unwrap`-style force operations: no `try!`, no `!` force-unwrap in production paths.
 - Settings live in `AppSettings` (@Published + UserDefaults persistence). New settings need a default in `init`.
 - Errors surface as `MagnetoError` with French `errorDescription`.
-- The paste flow must never block on the LLM pass: on LLM failure/timeout, paste the rule-cleaned text.
+- There is no LLM cleanup pass, and adding one back needs evidence. The one that existed changed 10 words
+  out of 1053 over a full day of real dictation, nine of them a trailing full stop, for a second of latency
+  every time: Scribe's `no_verbatim` already does that work inside the transcription call. Removed in
+  c4c047e's successor; the code is in history if a measurement ever justifies it.
+- Nothing rewrites the engine's text except `QuotePass`, and adding a rule back needs a count first. Nine
+  once existed for Voxtral's verbatim output; measured on 1981 words from Scribe and 1512 from the local
+  model they fired zero times, and two damaged a correct text: one stripped the space French wants before
+  `?` `!` `;` `:`, which Scribe writes 15 times in 45 dictations, the other forced casing on the fragments
+  Scribe deliberately leaves lowercase for someone patching the middle of a sentence.
 - Conventional commits (feat:/fix:/docs:/refactor:/chore:), French commit messages.
 - Never commit or push without an explicit request from the user.
 - Capture never goes through `AVAudioEngine`: reading its `inputNode` was measured at 3146 ms on AirPods
@@ -70,6 +80,14 @@ for Debug would break the signature TCC pins its grants to.
 
 ## Known deferred items
 
-- Apple SpeechAnalyzer vocabulary biasing (AnalysisContext.contextualStrings) intentionally omitted: unproven on SpeechTranscriber, vocabulary is enforced by keyterms + LLM pass instead.
+- Apple SpeechAnalyzer vocabulary biasing: measured inert, not merely unproven. `AnalysisContext.contextualStrings`
+  fed through `setContext` left all 34 test dictations identical byte for byte. Only the
+  `init(inputSequence:…analysisContext:)` path remains untested. Vocabulary is enforced by keyterms instead.
+- `DictationTranscriber`, Apple's dictation-oriented module, measured worse than `SpeechTranscriber` on French
+  dictation (SKU heard as "SAU", contexte as "contacts"), and its explicit `.punctuation` option changed nothing.
+  Both share one asset, `com.apple.speech.asr.transcription.fr`, so there is no second French model to reach for.
 - App language is system-driven (French strings hardcoded); EN localization via String Catalog is backlog.
-- macOS 27 "Advanced Dictation" (AFM 3 Core Advanced) not yet exposed to third-party Speech API; re-evaluate at GM.
+- macOS 27 advanced dictation exists and this Mac qualifies for it (M3, 16 GB, against a bar of M3 and 12 GB),
+  but it runs on the Apple Intelligence assets that the system dictation uses, not on the Speech framework's ASR
+  family, whose only French entry is the classic model. Out of reach for a third-party app; re-evaluate when a
+  macOS 27 SDK ships, since Xcode 26.6 still builds against 26.5.

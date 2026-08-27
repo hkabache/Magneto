@@ -3,8 +3,6 @@ import Security
 
 enum Keychain {
     static let elevenLabs = "elevenlabs"
-    static let mistral = "mistral"
-    static let anthropic = "anthropic"
 
     private static let service = "com.hkabache.magneto"
 

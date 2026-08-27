@@ -75,9 +75,6 @@ enum TranscriptionService {
         if Keychain.exists(Keychain.elevenLabs) {
             clients.append(ElevenLabsClient())
         }
-        if Keychain.exists(Keychain.mistral) {
-            clients.append(VoxtralClient())
-        }
         clients.append(AppleSpeechClient())
 
         var failures: [String] = []

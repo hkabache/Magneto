@@ -106,7 +106,7 @@ struct OverlayView: View {
             } else {
                 ProgressView()
                     .controlSize(.small)
-                Text(app.busyLabel)
+                Text(app.phase.statusLabel)
             }
         }
         .font(.system(size: 12, weight: .medium))

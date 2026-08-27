@@ -10,15 +10,15 @@ import OSLog
 ///
 /// Privacy: `Logger` masks dynamic strings as `<private>` unless they are marked
 /// public, and only what someone may safely paste into a support message is marked so.
-/// The dictated text and the API keys never reach the journal at all.
+/// The dictated text and the API keys never reach the journal at all: the text lives in
+/// `DictationJournal`, in files of its own, and only while that setting is on.
 enum Log {
-    /// Kept identical to the bundle identifier: `Diagnostics` filters on it, and so
-    /// does any `log show` command written down in a support exchange.
+    /// Kept identical to the bundle identifier, which is what every `log show
+    /// --predicate 'subsystem == "..."'` in the README filters on.
     static let subsystem = "com.hkabache.magneto"
 
     static let pipeline = Logger(subsystem: subsystem, category: "pipeline")
     static let transcription = Logger(subsystem: subsystem, category: "transcription")
-    static let cleanup = Logger(subsystem: subsystem, category: "cleanup")
     static let paste = Logger(subsystem: subsystem, category: "paste")
 }
 

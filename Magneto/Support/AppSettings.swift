@@ -15,26 +15,6 @@ enum OverlayPosition: String, CaseIterable, Identifiable {
     }
 }
 
-enum PostProcessProvider: String, CaseIterable, Identifiable {
-    case mistral, anthropic
-
-    var id: String { rawValue }
-
-    var label: String {
-        switch self {
-        case .mistral: return "Mistral Small"
-        case .anthropic: return "Claude Haiku"
-        }
-    }
-
-    var keychainAccount: String {
-        switch self {
-        case .mistral: return Keychain.mistral
-        case .anthropic: return Keychain.anthropic
-        }
-    }
-}
-
 @MainActor
 final class AppSettings: ObservableObject {
     static let shared = AppSettings()
@@ -50,17 +30,11 @@ final class AppSettings: ObservableObject {
             CapsLockDelay.apply(noDelay: capsLockNoDelay)
         }
     }
-    @Published var postProcessEnabled: Bool {
-        didSet { defaults.set(postProcessEnabled, forKey: "postProcessEnabled") }
+    @Published var straightQuotes: Bool {
+        didSet { defaults.set(straightQuotes, forKey: "straightQuotes") }
     }
-    @Published var postProcessProvider: PostProcessProvider {
-        didSet { defaults.set(postProcessProvider.rawValue, forKey: "postProcessProvider") }
-    }
-    @Published var aggressiveFillers: Bool {
-        didSet { defaults.set(aggressiveFillers, forKey: "aggressiveFillers") }
-    }
-    @Published var frenchTypography: Bool {
-        didSet { defaults.set(frenchTypography, forKey: "frenchTypography") }
+    @Published var dictationJournal: Bool {
+        didSet { defaults.set(dictationJournal, forKey: "dictationJournal") }
     }
     @Published var customWords: [String] {
         didSet { defaults.set(customWords, forKey: "customWords") }
@@ -72,7 +46,7 @@ final class AppSettings: ObservableObject {
     /// itself keeps getting wrong. Kept out of the Vocabulaire tab: nobody should
     /// have to type them, and nobody has a reason to remove them.
     private static let builtInWords = [
-        "Magneto", "ElevenLabs", "Voxtral", "Mistral", "Anthropic", "Claude", "Haiku",
+        "Magneto", "ElevenLabs",
     ]
 
     /// User terms first: the keyterms list is capped, and someone's own words matter
@@ -85,10 +59,8 @@ final class AppSettings: ObservableObject {
     private init() {
         overlayPosition = OverlayPosition(rawValue: defaults.string(forKey: "overlayPosition") ?? "") ?? .bottom
         capsLockNoDelay = defaults.bool(forKey: "capsLockNoDelay")
-        postProcessEnabled = defaults.object(forKey: "postProcessEnabled") as? Bool ?? true
-        postProcessProvider = PostProcessProvider(rawValue: defaults.string(forKey: "postProcessProvider") ?? "") ?? .mistral
-        aggressiveFillers = defaults.bool(forKey: "aggressiveFillers")
-        frenchTypography = defaults.object(forKey: "frenchTypography") as? Bool ?? true
+        straightQuotes = defaults.object(forKey: "straightQuotes") as? Bool ?? true
+        dictationJournal = defaults.bool(forKey: "dictationJournal")
         customWords = defaults.stringArray(forKey: "customWords") ?? []
 
         // The HID override dies with the login session and `didSet` never fires from

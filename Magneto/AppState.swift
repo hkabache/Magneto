@@ -13,7 +13,6 @@ final class AppState: ObservableObject {
     static let shared = AppState()
 
     @Published private(set) var phase: Phase = .idle
-    @Published private(set) var busyLabel = "Transcription…"
     @Published var lastError: String?
     @Published private(set) var history: [String]
     @Published private(set) var accessibilityGranted = Permissions.accessibilityGranted
@@ -174,7 +173,6 @@ final class AppState: ObservableObject {
         }
         Log.pipeline.notice("dictée : \(duration, format: .fixed(precision: 1)) s d'audio")
         phase = .transcribing
-        busyLabel = "Transcription…"
         pipelineTask = Task { @MainActor [weak self] in
             await self?.runPipeline(url: url)
         }
@@ -217,62 +215,28 @@ final class AppState: ObservableObject {
             if !transcription.failures.isEmpty {
                 lastError = "\(transcription.failures.joined(separator: " · ")). Texte transcrit par \(transcription.engine)."
             }
-            let ruled = RulePass.clean(
-                transcription.text,
-                customWords: vocabulary,
-                frenchTypography: settings.frenchTypography
-            )
-            let text = await polished(ruled, vocabulary: vocabulary)
-            guard !Task.isCancelled else { return }
-            guard !text.isEmpty else {
+            // Décoché, le texte part au collage exactement tel que le moteur l'a rendu.
+            let ruled = settings.straightQuotes ? QuotePass.clean(transcription.text) : transcription.text
+            guard !ruled.isEmpty else {
                 fail("La transcription est vide.")
                 return
             }
-            pushHistory(text)
-            let outcome = await Paster.deliver(text)
+            if settings.dictationJournal {
+                DictationJournal.record(
+                    audio: url,
+                    raw: transcription.text,
+                    ruled: ruled,
+                    engine: transcription.engine
+                )
+            }
+            pushHistory(ruled)
+            let outcome = await Paster.deliver(ruled)
             if outcome == .copiedOnly {
                 Log.paste.error("collage refusé : permission Accessibilité absente")
                 lastError = "Collage impossible sans la permission Accessibilité. Le texte est copié : fais Cmd+V."
             } else {
-                Log.paste.notice("texte collé : \(text.count) caractères")
+                Log.paste.notice("texte collé : \(ruled.count) caractères")
             }
-        }
-    }
-
-    /// Below this length a dictation is a sentence or two, where the model has nothing
-    /// to correct and everything to invent.
-    private static let llmMinimumLength = 40
-
-    /// The paste never waits on the model and never dies with it: each way the pass can
-    /// come to nothing returns the rule-cleaned text, and says which way in the journal.
-    private func polished(_ text: String, vocabulary: [String]) async -> String {
-        guard settings.postProcessEnabled else {
-            Log.cleanup.notice("nettoyage IA désactivé")
-            return text
-        }
-        guard text.count >= Self.llmMinimumLength else {
-            Log.cleanup.notice("nettoyage IA ignoré : \(text.count) caractères, seuil \(Self.llmMinimumLength)")
-            return text
-        }
-        let provider = settings.postProcessProvider.label
-        busyLabel = "Nettoyage…"
-        let stopwatch = Stopwatch()
-        do {
-            let cleaned = try await LLMPass.clean(
-                text,
-                provider: settings.postProcessProvider,
-                vocabulary: vocabulary,
-                aggressiveFillers: settings.aggressiveFillers
-            )
-            guard LLMPass.isSane(cleaned, comparedTo: text, aggressiveFillers: settings.aggressiveFillers) else {
-                Log.cleanup.error("\(provider, privacy: .public) : sortie écartée, texte non nettoyé conservé")
-                return text
-            }
-            Log.cleanup.notice("\(provider, privacy: .public) : appliqué en \(stopwatch.milliseconds) ms")
-            return RulePass.normalizeQuotes(cleaned.trimmingCharacters(in: .whitespacesAndNewlines))
-        } catch {
-            Log.cleanup.error("\(provider, privacy: .public) : \(error.localizedDescription, privacy: .public)")
-            return text
         }
     }
 
