@@ -71,7 +71,9 @@ for Debug would break the signature TCC pins its grants to.
   model they fired zero times, and two damaged a correct text: one stripped the space French wants before
   `?` `!` `;` `:`, which Scribe writes 15 times in 45 dictations, the other forced casing on the fragments
   Scribe deliberately leaves lowercase for someone patching the middle of a sentence.
-- Conventional commits (feat:/fix:/docs:/refactor:/chore:), French commit messages.
+- Conventional commits (feat:/fix:/docs:/refactor:/chore:), French commit messages. Subjects ship to
+  users: the release workflow turns them into the release notes, which Sparkle displays in its update
+  window, prefix and version bump stripped.
 - Never commit or push without an explicit request from the user.
 - Capture never goes through `AVAudioEngine`: reading its `inputNode` was measured at 3146 ms on AirPods
   against 246 ms for `AVCaptureSession`, because macOS publishes a Bluetooth headset as a microphone

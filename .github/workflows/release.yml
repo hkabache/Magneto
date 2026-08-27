@@ -27,6 +27,10 @@ jobs:
     steps:
       - name: Récupérer le code
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # Les notes de version se lisent dans l'historique entre deux tags, que le
+          # clone superficiel par défaut ne contient pas.
+          fetch-depth: 0
 
       - name: Déduire la version du tag
         run: |
@@ -45,6 +49,43 @@ jobs:
           # existantes verraient alors la nouveauté comme plus ancienne qu'elles.
           IFS=. read -r MAJOR MINOR PATCH <<< "$VERSION"
           echo "BUILD=$(( ${MAJOR:-0} * 10000 + ${MINOR:-0} * 100 + ${PATCH:-0} ))" >> "$GITHUB_ENV"
+
+      # Deux fenêtres lisent ces notes : celle que Sparkle ouvre pour proposer la mise à
+      # jour, qui sans description se réduit à une phrase avec les boutons collés aux
+      # bords, et la page de la release, que --generate-notes laissait vide faute de
+      # pull request à lister. Une seule source pour les deux.
+      - name: Rédiger les notes de version
+        run: |
+          set -euo pipefail
+          PREVIOUS="$(git describe --tags --abbrev=0 "$GITHUB_REF_NAME^" 2>/dev/null || true)"
+          # Le préfixe conventionnel classe les commits, il ne dit rien à qui lit ce qui
+          # change dans son app, et le commit de bump n'apprend rien de plus : le numéro
+          # est déjà le titre de la release.
+          SUBJECTS="$(git log --no-merges --reverse --invert-grep --grep='^chore: version ' \
+            --format='%s' "${PREVIOUS:+$PREVIOUS..}$GITHUB_REF_NAME" \
+            | sed -E 's/^(feat|fix|docs|refactor|chore|ci|perf|test|style)(\([^)]*\))?: //')"
+          if [ -z "$SUBJECTS" ]; then
+            echo "::error::aucun commit à décrire depuis ${PREVIOUS:-le début du dépôt}"
+            exit 1
+          fi
+
+          printf '%s\n' "$SUBJECTS" | sed 's/^/- /' > "$RUNNER_TEMP/notes.md"
+          if [ -n "$PREVIOUS" ]; then
+            printf '\n**Toutes les modifications** : https://github.com/%s/compare/%s...%s\n' \
+              "$GITHUB_REPOSITORY" "$PREVIOUS" "$GITHUB_REF_NAME" >> "$RUNNER_TEMP/notes.md"
+          fi
+
+          # Sparkle rend la description comme du HTML : les sujets sont échappés, les
+          # balises de la liste sont les seules à ne pas l'être.
+          {
+            echo "<ul>"
+            printf '%s\n' "$SUBJECTS" \
+              | sed -e 's/&/\&amp;/g' -e 's/</\&lt;/g' -e 's/>/\&gt;/g' \
+                    -e 's|^|<li>|' -e 's|$|</li>|'
+            echo "</ul>"
+          } > "$RUNNER_TEMP/notes.html"
+
+          cat "$RUNNER_TEMP/notes.md"
 
       - name: Préparer les outils
         run: |
@@ -248,6 +289,7 @@ jobs:
           # Rend directement les attributs sparkle:edSignature et length de l'enclosure.
           ENCLOSURE=$("$RUNNER_TEMP/sparkle/bin/sign_update" "$DMG" --ed-key-file "$KEY")
           rm -f "$KEY"
+          NOTES="$(cat "$RUNNER_TEMP/notes.html")"
 
           cat > appcast.xml <<XML
           <?xml version="1.0" encoding="utf-8"?>
@@ -256,6 +298,9 @@ jobs:
           <title>Magneto</title>
           <item>
           <title>Magneto $VERSION</title>
+          <description><![CDATA[
+          $NOTES
+          ]]></description>
           <pubDate>$(LC_ALL=C date -u "+%a, %d %b %Y %H:%M:%S +0000")</pubDate>
           <sparkle:version>$BUILD</sparkle:version>
           <sparkle:shortVersionString>$VERSION</sparkle:shortVersionString>
@@ -277,4 +322,4 @@ jobs:
           set -euo pipefail
           gh release create "$GITHUB_REF_NAME" "$DMG" appcast.xml \
             --title "Magneto $VERSION" \
-            --generate-notes
+            --notes-file "$RUNNER_TEMP/notes.md"

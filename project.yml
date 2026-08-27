@@ -50,6 +50,13 @@ targets:
         # win over the build settings and make every release announce itself as 1.0.
         CFBundleShortVersionString: $(MARKETING_VERSION)
         CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        # The app carries no .lproj, so macOS resolved it to its development language
+        # and every dialog Sparkle draws came out in English on a French Mac. Declaring
+        # the localization without shipping resources for it is what Sparkle does for
+        # its own helper: CFBundleLocalizations is what preferredLocalizationsFromArray
+        # matches on, and the framework then picks its fr.lproj.
+        CFBundleDevelopmentRegion: fr
+        CFBundleLocalizations: [fr]
         SUFeedURL: https://github.com/hkabache/Magneto/releases/latest/download/appcast.xml
         # Public by design: it is what verifies that an update was signed by the
         # private key, and it ships inside every copy of the app.
