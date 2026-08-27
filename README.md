@@ -1,33 +1,48 @@
-# Magneto
+<h1 align="center">Magneto</h1>
 
-Dictée vocale pour macOS, dans la barre de menus. Un raccourci démarre l'enregistrement, le même l'arrête, et le texte transcrit puis nettoyé arrive directement au curseur, dans n'importe quelle application.
+<p align="center">
+  Dictée vocale pour macOS, dans la barre de menus.<br>
+  Un raccourci démarre l'enregistrement, le même l'arrête, et le texte transcrit arrive
+  directement au curseur, dans n'importe quelle application.
+</p>
 
-## Installation
+<p align="center">
+  <a href="https://github.com/hkabache/Magneto/releases/latest/download/Magneto.dmg">
+    <img src="docs/download.svg" width="240" alt="Télécharger Magneto">
+  </a>
+</p>
 
-1. Télécharger le `.dmg` de la [dernière version](https://github.com/hkabache/Magneto/releases/latest)
-2. Ouvrir le DMG et glisser Magneto dans Applications
-3. Lancer l'app : une icône apparaît dans la barre de menus, en haut à droite
-4. Autoriser le microphone, puis l'accessibilité, quand l'app les demande
+<p align="center">
+  <sub>macOS 26 minimum · Mac Apple Silicon · signée et notarisée par Apple</sub>
+</p>
 
-macOS 26 minimum, Mac Apple Silicon. L'app est signée et notarisée par Apple : elle s'ouvre normalement, sans avertissement ni détour par les Réglages Système.
+## Utilisation
+
+Magneto n'ouvre aucune fenêtre : son icône s'installe dans la barre de menus, en haut à droite de l'écran. Au premier lancement, elle demande le microphone, puis l'accessibilité.
+
+- **Option+Espace** démarre la dictée, **Option+Espace** l'arrête et colle le texte
+- **Échap** annule l'enregistrement en cours
+- l'**icône de la barre de menus** ouvre les réglages, et un bouton y recopie la dernière dictée
 
 L'accessibilité sert au collage automatique. Sans elle Magneto fonctionne quand même, mais le texte se contente d'arriver dans le presse-papiers et il faut faire Cmd+V soi-même.
 
 Pour mettre à jour, **Vérifier les mises à jour** en bas du popover : Magneto interroge GitHub, propose la nouvelle version s'il y en a une, l'installe et se relance. Rien ne part sans ce clic, il n'y a aucune vérification en arrière-plan.
 
-Une mise à jour n'est installée que si elle est signée par une clé privée qui ne quitte jamais mes secrets, la clé publique correspondante étant compilée dans l'app. Quelqu'un qui prendrait le contrôle du dépôt pourrait publier ce qu'il veut, Magneto refuserait de l'installer.
-
 ## Pourquoi
 
 **Gratuite, et elle le restera.** La licence interdit de la vendre.
 
-**Sans clé, ton audio ne quitte pas ta machine.** Le moteur de transcription d'Apple et le nettoyage par règles tournent en local. Seule exception, une fois : si le modèle de dictée française n'est pas déjà installé sur le Mac, macOS le télécharge chez Apple à la première utilisation. Une clé API n'est utile que pour monter en qualité, et reste facultative.
+**Sans clé, ton audio ne quitte pas ta machine.** Le moteur de transcription d'Apple tourne en local. Seule exception, une fois : si le modèle de dictée française n'est pas déjà installé sur le Mac, macOS le télécharge chez Apple à la première utilisation. Une clé API n'est utile que pour monter en qualité, et reste facultative.
 
 **Tu paies l'usage, pas un abonnement.** Les services équivalents se facturent au mois, que tu dictes ou non. Ici tu règles directement le fournisseur, au tarif public et pour les secondes que tu as réellement dictées, sans intermédiaire qui prend sa marge au passage.
 
-**Tes clés, ton audio.** Les clés sont les tiennes et vivent dans le trousseau macOS. L'audio part de ton Mac vers le fournisseur que tu as choisi, et nulle part ailleurs : aucun serveur intermédiaire, aucun compte à créer, aucune télémétrie, aucun outil d'analytique. Pour dicter, la seule adresse contactée est `api.elevenlabs.io`, et un seul appel réseau par dictée. S'y ajoutent Apple, une seule fois et seulement si le modèle de dictée local doit être installé, et GitHub, uniquement quand tu cliques sur « Vérifier les mises à jour », le temps de lire le fichier qui décrit la dernière version et de télécharger le DMG. Le code est public pour que tu puisses le vérifier plutôt que me croire.
+**Tes clés, ton audio.** Les clés sont les tiennes et vivent dans le trousseau macOS. L'audio part de ton Mac vers le fournisseur que tu as choisi, et nulle part ailleurs : aucun serveur intermédiaire, aucun compte à créer, aucune télémétrie, aucun outil d'analytique.
+
+Pour dicter, la seule adresse contactée est `api.elevenlabs.io`, et un seul appel réseau par dictée. S'y ajoutent Apple, une seule fois et seulement si le modèle de dictée local doit être installé, et GitHub, uniquement quand tu cliques sur « Vérifier les mises à jour », le temps de lire le fichier qui décrit la dernière version et de télécharger le DMG. Le code est public pour que tu puisses le vérifier plutôt que me croire.
 
 C'est la différence de fond avec un service qui mutualise ses propres clés : au lieu d'ignorer ce que devient ta voix, tu contractes directement avec le fournisseur, tu lis ses conditions, et tu révoques ta clé quand tu veux.
+
+**Une mise à jour ne s'installe que si je l'ai signée.** La clé privée qui signe le flux ne quitte jamais mes secrets, la clé publique correspondante est compilée dans l'app. Quelqu'un qui prendrait le contrôle du dépôt pourrait publier ce qu'il veut, Magneto refuserait de l'installer.
 
 ## Fonctionnement
 
@@ -46,15 +61,13 @@ Tout se passe dans le popover de la barre de menus :
 
 - **Général** : raccourci, position de la fenêtre d'enregistrement, délai Caps Lock, lancement au démarrage, guillemets droits, journal des dictées
 - **Vocabulaire** : mots et termes techniques envoyés au moteur de transcription comme keyterms. À cette liste s'ajoute un vocabulaire intégré, non affiché et non modifiable, qui couvre les noms propres du produit lui-même (Magneto, ElevenLabs) pour qu'on puisse parler de l'app à l'app sans rien configurer
-- **Clés API** : la clé ElevenLabs, seule clé de l'app
+- **Clés API** : la clé ElevenLabs, seule clé de l'app. Elle vit dans le trousseau macOS, sous le service `com.hkabache.magneto` et le compte `elevenlabs` : supprimer l'app ne l'efface pas, et une réinstallation la retrouve
 
 Sans clé, Magneto fonctionne avec le moteur Apple hors ligne.
 
-Il n'y a pas de passe de nettoyage par IA, et il y en a eu une. Sur une journée entière de dictées, elle a modifié dix mots sur mille cinquante-trois, dont neuf points finaux, en échange d'une seconde d'attente à chaque fois : Scribe rend déjà le texte sans hésitations ni faux départs, dans le même appel. Elle a donc été retirée plutôt que gardée pour un cas qu'aucune mesure n'a montré.
+**Guillemets droits** est la seule modification que Magneto apporte au texte du moteur : les `« »` et les guillemets courbes deviennent des `"` droits. Décoché, le texte est collé exactement tel que le moteur l'a rendu.
 
-La clé vit dans le trousseau macOS, sous le service `com.hkabache.magneto` et le compte `elevenlabs`. Elles ne sont donc pas dans le bundle : supprimer l'app ne les efface pas, et une réinstallation les retrouve.
-
-« Caps Lock sans délai » supprime le délai d'activation d'environ 100 ms que macOS impose sur la touche, et qui fait qu'un appui rapide ne l'active pas. Le réglage passe par `hidutil` et vaut pour tout le système, pas seulement pour Magneto. L'override ne survit pas à une déconnexion, donc Magneto le repose à chaque lancement tant que l'option est active. `hidutil` sait écrire une propriété mais pas l'effacer : désactiver l'option réécrit le délai d'origine au lieu de retirer l'override.
+**Caps Lock sans délai** supprime le délai d'activation d'environ 100 ms que macOS impose sur la touche, et qui fait qu'un appui rapide ne l'active pas. Le réglage passe par `hidutil` et vaut pour tout le système, pas seulement pour Magneto. L'override ne survit pas à une déconnexion, donc Magneto le repose à chaque lancement tant que l'option est active. `hidutil` sait écrire une propriété mais pas l'effacer : désactiver l'option réécrit le délai d'origine au lieu de retirer l'override.
 
 ## Signaler un problème
 
@@ -64,11 +77,7 @@ Magneto écrit au fil de l'eau dans le journal système de macOS : le moteur qui
 log show --predicate 'subsystem == "com.hkabache.magneto"' --last 1d --style compact
 ```
 
-Magneto n'apporte qu'une seule modification au texte du moteur : les guillemets `« »` et courbes deviennent des `"` droits. Elle se désactive dans l'onglet Général, et alors le texte est collé exactement tel quel.
-
-Il y avait huit autres règles : virgule en tête, espaces doubles, espace avant une virgule, virgule doublée, ponctuation collée, caractère `…` converti, majuscule forcée en début de phrase. Elles réparaient le verbatim d'un moteur qui a quitté la chaîne. Comptées sur 1981 mots d'ElevenLabs et 1512 mots du moteur local, elles se sont déclenchées zéro fois, et deux d'entre elles abîmaient un texte correct. Elles ont donc été retirées.
-
-Le réglage **Journal des dictées** répond à une autre question : ce que le nettoyage par règles a changé, et ce qu'un autre moteur aurait rendu. Il écrit dans `~/Library/Application Support/Magneto` chaque dictée, son audio, et son texte avant et après les règles, avec le nombre de mots modifiés. Contrairement au journal système, **ces fichiers contiennent le texte dicté en clair et les enregistrements**, soit environ 2 Mo par minute dictée. Il est désactivé par défaut : on l'active le temps d'une comparaison, puis on supprime le dossier. C'est lui qui a montré que la passe de nettoyage par IA ne servait plus, et que deux règles abîmaient un texte qui arrivait correct.
+Le réglage **Journal des dictées** répond à une autre question : ce que valent les moteurs les uns contre les autres, et ce que la normalisation des guillemets a changé. Il écrit dans `~/Library/Application Support/Magneto` chaque dictée, son audio, et son texte avant et après, avec le nombre de mots modifiés. Contrairement au journal système, **ces fichiers contiennent le texte dicté en clair et les enregistrements**, soit environ 2 Mo par minute dictée. Il est désactivé par défaut : on l'active le temps d'une comparaison, puis on supprime le dossier.
 
 ## Développement
 
@@ -84,7 +93,7 @@ Les tests couvrent ce qui décide du texte livré sans passer par le réseau : l
 
 Les deux scripts compilent dans `~/Library/Developer/Xcode/DerivedData/Magneto` et suppriment la copie intermédiaire de l'app : Spotlight indexe tout `.app` qu'il trouve, et une recherche « Magneto » dans le Finder doit renvoyer une seule icône.
 
-Un tag `v*` déclenche la release : tests, DMG signé, notarisation par Apple, agrafage du ticket, signature du flux Sparkle, publication du DMG et de l'`appcast.xml` que l'app viendra lire.
+Un tag `v*` déclenche la release : tests, DMG signé, notarisation par Apple, agrafage du ticket, signature du flux Sparkle, publication du DMG et de l'`appcast.xml` que l'app viendra lire. Le DMG est publié sous un nom sans version, `Magneto.dmg`, pour que le bouton de téléchargement du README pointe sur une URL permanente.
 
 ### Clés de mise à jour
 

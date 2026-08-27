@@ -33,7 +33,11 @@ jobs:
           set -euo pipefail
           VERSION="${GITHUB_REF_NAME#v}"
           echo "VERSION=$VERSION" >> "$GITHUB_ENV"
-          echo "DMG=Magneto-$VERSION.dmg" >> "$GITHUB_ENV"
+          # Sans numéro de version dans le nom, ce qui donne au DMG une URL permanente,
+          # releases/latest/download/Magneto.dmg, sur laquelle pointe le bouton de
+          # téléchargement du README. Le renommer casserait ce bouton en silence, sans
+          # rien casser dans la release elle-même, dont le titre porte la version.
+          echo "DMG=Magneto.dmg" >> "$GITHUB_ENV"
 
           # Le numéro de build est ce que Sparkle compare pour décider qu'une version
           # est plus récente. Le dériver du tag plutôt que du compteur d'exécutions,
