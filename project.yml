@@ -64,8 +64,8 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.hkabache.magneto
         PRODUCT_NAME: Magneto
-        MARKETING_VERSION: "0.2.1"
-        CURRENT_PROJECT_VERSION: "2"
+        MARKETING_VERSION: "0.3.0"
+        CURRENT_PROJECT_VERSION: "300"
         SWIFT_VERSION: "5.0"
         CODE_SIGN_STYLE: Manual
         # TCC stores a code requirement, not a path: an ad-hoc signature pins it to
