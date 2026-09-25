@@ -16,8 +16,8 @@ settings:
   base:
     # One version for the Mac app, the iPhone app and its extension: the release workflow
     # overrides both from the tag, and a command-line override reaches every target.
-    MARKETING_VERSION: "0.3.2"
-    CURRENT_PROJECT_VERSION: "302"
+    MARKETING_VERSION: "0.3.3"
+    CURRENT_PROJECT_VERSION: "303"
     SWIFT_VERSION: "5.0"
 targets:
   Magneto:
