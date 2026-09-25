@@ -646,7 +646,20 @@ private struct KeyField: View {
             }
         } label: {
             HStack(spacing: 5) {
-                Text(label)
+                // The label opens the page the key comes from, so nobody hunts for it with
+                // a half-pasted key in the other hand.
+                if let keysPage = KeyCheck.keysPage(for: account) {
+                    Link(destination: keysPage) {
+                        HStack(spacing: 4) {
+                            Image(systemName: "link")
+                                .font(.caption)
+                            Text(label)
+                        }
+                    }
+                    .help("Ouvrir la page des clés \(label)")
+                } else {
+                    Text(label)
+                }
                 HelpTag(help)
             }
         }
