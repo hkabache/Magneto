@@ -55,6 +55,22 @@ Option+Espace → transcription :
 → collage au curseur (Cmd+V synthétique, presse-papiers restauré)
 ```
 
+## iPhone
+
+La même dictée, sans fenêtre : un raccourci la démarre, le même l'arrête, et le texte arrive dans le presse-papiers, que le clavier propose alors de coller. Magneto ne s'ouvre jamais pendant une dictée.
+
+- **Bouton Action** ou **Toucher le dos** lancent le raccourci « Dicter » : un appui démarre, le suivant arrête et copie
+- la **pilule** de la Dynamic Island montre l'enregistrement et son chrono, puis la transcription, puis « Texte prêt »
+- l'**app** ne sert qu'aux réglages, clé, vocabulaire et journal, plus une dictée de secours qui copie directement
+
+Installation : depuis Xcode sur le téléphone, cible `MagnetoIOS`, l'app n'est pas distribuée. Dans l'app, **Installer le raccourci Dicter** l'ajoute à Raccourcis en deux touches, puis Réglages > Bouton Action > Raccourci > Dicter, et Réglages > Accessibilité > Toucher > Toucher le dos > Dicter. Au premier passage, Raccourcis demande deux fois « toujours autoriser », pour le micro et pour le collage.
+
+Pourquoi un raccourci et pas l'app seule : iOS n'ouvre pas le presse-papiers à un processus qui tourne en arrière-plan, l'écriture est ignorée sans erreur. L'action « Dicter » rend donc le texte, et c'est Raccourcis, qui a ce droit, qui le copie. Le raccourci tient en trois actions : « Dicter », « Si Texte a une valeur », « Copier dans le presse-papiers ».
+
+Écran éteint, le bouton Action réveille l'écran et rien de plus : iOS ne lance pas de raccourci tiers depuis là. Écran allumé, verrouillé ou non, tout fonctionne.
+
+Le journal des dictées s'écrit dans Fichiers > Sur mon iPhone > Magneto. Les adresses contactées sont les mêmes que sur Mac, moins GitHub : pas de mise à jour automatique, l'app se réinstalle depuis Xcode.
+
 ## Réglages
 
 Tout se passe dans le popover de la barre de menus :
@@ -90,6 +106,15 @@ xcodebuild test -project Magneto.xcodeproj -scheme Magneto -destination 'platfor
 ```
 
 Les tests couvrent ce qui décide du texte livré sans passer par le réseau : la normalisation des guillemets et ce qu'elle ne doit pas toucher, la mise en forme des keyterms attendue par Scribe, et l'état de la capture audio.
+
+La cible iPhone se compile et s'installe depuis le terminal, téléphone branché et déverrouillé, son identifiant venant de `xcrun devicectl list devices` :
+
+```bash
+xcodebuild -project Magneto.xcodeproj -scheme MagnetoIOS -destination 'id=<UDID>' \
+  -derivedDataPath ~/Library/Developer/Xcode/DerivedData/Magneto -allowProvisioningUpdates build
+xcrun devicectl device install app --device <UDID> \
+  ~/Library/Developer/Xcode/DerivedData/Magneto/Build/Products/Debug-iphoneos/Magneto.app
+```
 
 Les deux scripts compilent dans `~/Library/Developer/Xcode/DerivedData/Magneto` et suppriment la copie intermédiaire de l'app : Spotlight indexe tout `.app` qu'il trouve, et une recherche « Magneto » dans le Finder doit renvoyer une seule icône.
 

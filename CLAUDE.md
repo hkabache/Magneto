@@ -4,9 +4,9 @@ This file provides guidance to Claude Code when working with this repository.
 
 ## Project
 
-Magneto is a minimal macOS menu bar dictation app, native Swift/SwiftUI, single target, one SPM dependency (KeyboardShortcuts). Distributed outside the App Store: Developer ID signed, notarized, published as a DMG by the release workflow on a `v*` tag.
+Magneto is a minimal macOS menu bar dictation app, native Swift/SwiftUI, two SPM dependencies on the Mac (KeyboardShortcuts, Sparkle), none on the iPhone. Distributed outside the App Store: Developer ID signed, notarized, published as a DMG by the release workflow on a `v*` tag. An iPhone target shares the transcription chain and is installed from Xcode, never released.
 
-Pipeline: global hotkey toggle → AVAudioRecorder (wav 16kHz mono) → transcription chain (ElevenLabs Scribe v2 → Apple SpeechAnalyzer) → quote straightening → paste at cursor via synthesized Cmd+V.
+Pipeline: global hotkey toggle → AVAudioRecorder (wav 16kHz mono) → transcription chain (ElevenLabs Scribe v2 → Apple SpeechAnalyzer) → quote straightening → paste at cursor via synthesized Cmd+V. On the iPhone the toggle is an App Intent run by a shortcut, the pill is a Live Activity, and the shortcut copies the text the intent returns.
 
 ## Build
 
@@ -17,7 +17,23 @@ xcodebuild -project Magneto.xcodeproj -scheme Magneto -configuration Debug \
 ./scripts/dev.sh                   # Debug build + launch
 ./scripts/install.sh               # Release build + install to /Applications + launch
 xcodebuild test -project Magneto.xcodeproj -scheme Magneto -destination 'platform=macOS'
+xcodebuild -project Magneto.xcodeproj -scheme MagnetoIOS -destination 'id=<UDID>' \
+  -derivedDataPath ~/Library/Developer/Xcode/DerivedData/Magneto -allowProvisioningUpdates build
+xcrun devicectl device install app --device <UDID> \
+  ~/Library/Developer/Xcode/DerivedData/Magneto/Build/Products/Debug-iphoneos/Magneto.app
 ```
+
+The iPhone build needs the phone plugged in and unlocked, and `-allowProvisioningUpdates`
+fails on every freshly created profile with "Build input file cannot be found"; the second run passes.
+
+Tests use Swift Testing: xcodebuild's "Executed 0 tests" line is the XCTest counter, the real
+count is the "Test run with N tests" line.
+
+On a new Mac, beyond Xcode and `brew install xcodegen`: `sudo xcodebuild -runFirstLaunch` before
+the first build, an Apple Account in Xcode's settings for the iPhone profiles, and the Developer ID
+identity imported as a .p12 with its private key. That identity only turns valid once Apple's
+intermediate is in the login keychain, which a fresh Xcode does not install:
+`https://www.apple.com/certificateauthority/DeveloperIDG2CA.cer`.
 
 Never build with `-derivedDataPath build` (inside the repo): Spotlight indexes the
 resulting Debug and Release `Magneto.app` copies as real applications, so searching
@@ -33,18 +49,23 @@ Never launch or kill the app yourself unless explicitly asked: the user keeps a 
 
 ```
 project.yml                        XcodeGen spec (source of truth for build settings)
-Magneto/
+Shared/                            compiled into every target, no AppKit or UIKit inside
+  Transcription/                   TranscriptionClient protocol + chain + 2 clients
+  PostProcessing/QuotePass.swift   straightens quotation marks, and nothing else
+  Support/                         AppSettings (two macOS-only settings under #if), Keychain, KeyCheck, KeyStatus, Log, MagnetoError, DictationJournal, AudioFile
+Magneto/                           macOS app
   MagnetoApp.swift                 @main, MenuBarExtra (.window style)
   AppState.swift                   state machine idle/recording/transcribing, pipeline orchestration
   Audio/Recorder.swift             picks a capture path per dictation, publishes level and status
   Audio/SimpleCapture.swift        AVAudioRecorder, built-in microphone only
   Audio/ResilientCapture.swift     AVCaptureSession, rebuilds a dead or stalled stream
   Audio/InputDevice.swift          CoreAudio transport of the default input
-  Transcription/                   TranscriptionClient protocol + chain + 2 clients
-  PostProcessing/QuotePass.swift   straightens quotation marks, and nothing else
   Output/Paster.swift              transient pasteboard + CGEvent Cmd+V + clipboard restore
   UI/                              MenuBarView (popover with tabs), OverlayPanel (NSPanel pill)
-  Support/                         AppSettings, Keychain, Permissions, Hotkeys, CapsLockDelay, Log, Updater, DictationJournal
+  Support/                         Permissions, Hotkeys, CapsLockDelay, Updater
+MagnetoIOS/                        iPhone app: Dictation (the intent-driven pipeline), ToggleDictationIntent, SettingsView, Dicter.shortcut
+  Activity/RecordingAttributes     the Live Activity state, the only file the widget extension shares with the app
+MagnetoIOSWidgets/                 DictationLiveActivity, the pill
 MagnetoTests/                      pure-logic tests, no network, no host app
 ```
 
@@ -73,7 +94,8 @@ for Debug would break the signature TCC pins its grants to.
   Scribe deliberately leaves lowercase for someone patching the middle of a sentence.
 - Conventional commits (feat:/fix:/docs:/refactor:/chore:), French commit messages. Subjects ship to
   users: the release workflow turns them into the release notes, which Sparkle displays in its update
-  window, prefix and version bump stripped.
+  window, prefix and version bump stripped. A commit that changes nothing on the Mac carries the `(ios)`
+  scope, `feat(ios): …`, and the workflow drops it from those notes.
 - Never commit or push without an explicit request from the user.
 - Capture never goes through `AVAudioEngine`: reading its `inputNode` was measured at 3146 ms on AirPods
   against 246 ms for `AVCaptureSession`, because macOS publishes a Bluetooth headset as a microphone
@@ -85,6 +107,20 @@ for Debug would break the signature TCC pins its grants to.
   which hosts are contacted and when, so anything that widens that has to be reflected there in the same
   change.
 
+## iPhone
+
+The rules of the phone pipeline, both intent protocols, the mixable session and its retry, the text
+returned instead of pasted, sit as comments next to the lines they constrain, each measured on the phone.
+What the code cannot say:
+
+- `Dicter.shortcut` is the three-action shortcut that copies the intent's result, signed with
+  `shortcuts sign --mode anyone`. To change it, rebuild it in Shortcuts (Dicter, Si Texte a une valeur,
+  Copier dans le presse-papiers), export it and re-sign.
+- No Control Center control, on purpose: it would run the intent outside the shortcut and the text would
+  go nowhere.
+- Screen off, the Action button wakes the screen and iOS runs nothing else. Out of scope by choice: the
+  dictation only serves inside an open app.
+
 ## Known deferred items
 
 - Apple SpeechAnalyzer vocabulary biasing: measured inert, not merely unproven. `AnalysisContext.contextualStrings`
@@ -94,7 +130,8 @@ for Debug would break the signature TCC pins its grants to.
   dictation (SKU heard as "SAU", contexte as "contacts"), and its explicit `.punctuation` option changed nothing.
   Both share one asset, `com.apple.speech.asr.transcription.fr`, so there is no second French model to reach for.
 - App language is system-driven (French strings hardcoded); EN localization via String Catalog is backlog.
-- macOS 27 advanced dictation exists and this Mac qualifies for it (M3, 16 GB, against a bar of M3 and 12 GB),
-  but it runs on the Apple Intelligence assets that the system dictation uses, not on the Speech framework's ASR
-  family, whose only French entry is the classic model. Out of reach for a third-party app; re-evaluate when a
-  macOS 27 SDK ships, since Xcode 26.6 still builds against 26.5.
+- The iPhone app has no icon, and the keychain item keeps the default accessibility: a dictation started
+  while the phone is locked would not read the key and would fall back to the Apple engine.
+- macOS 27 advanced dictation runs on the Apple Intelligence assets that the system dictation uses, not on the
+  Speech framework's ASR family, whose only French entry is the classic model: out of reach for a third-party app
+  as of the 26.5 SDK. Worth re-checking against the macOS 27 SDK.

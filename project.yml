@@ -4,6 +4,7 @@ options:
   createIntermediateGroups: true
   deploymentTarget:
     macOS: "26.0"
+    iOS: "26.0"
 packages:
   KeyboardShortcuts:
     url: https://github.com/sindresorhus/KeyboardShortcuts
@@ -11,12 +12,20 @@ packages:
   Sparkle:
     url: https://github.com/sparkle-project/Sparkle
     from: 2.9.5
+settings:
+  base:
+    # One version for the Mac app, the iPhone app and its extension: the release workflow
+    # overrides both from the tag, and a command-line override reaches every target.
+    MARKETING_VERSION: "0.3.2"
+    CURRENT_PROJECT_VERSION: "302"
+    SWIFT_VERSION: "5.0"
 targets:
   Magneto:
     type: application
     platform: macOS
     sources:
       - Magneto
+      - Shared
     dependencies:
       - package: KeyboardShortcuts
       - package: Sparkle
@@ -80,9 +89,6 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.hkabache.magneto
         PRODUCT_NAME: Magneto
-        MARKETING_VERSION: "0.3.2"
-        CURRENT_PROJECT_VERSION: "302"
-        SWIFT_VERSION: "5.0"
         CODE_SIGN_STYLE: Manual
         # TCC stores a code requirement, not a path: an ad-hoc signature pins it to
         # the binary's cdhash, so every rebuild revoked the microphone and
@@ -114,6 +120,7 @@ targets:
     platform: macOS
     sources:
       - path: MagnetoTests
+      - path: Shared
       # The app is compiled into the test bundle instead of being hosted by it: the
       # hardened runtime forbids the code injection a test host would need, and
       # relaxing it for Debug would break the very signature TCC pins its grants to.
@@ -127,7 +134,71 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.hkabache.magneto.tests
         PRODUCT_NAME: MagnetoTests
-        SWIFT_VERSION: "5.0"
         GENERATE_INFOPLIST_FILE: true
         CODE_SIGN_STYLE: Manual
         CODE_SIGN_IDENTITY: "-"
+
+  # Installed from Xcode on the phone, never released: no Sparkle, no notarization, and
+  # a development signature that Xcode manages itself.
+  MagnetoIOS:
+    type: application
+    platform: iOS
+    sources:
+      - MagnetoIOS
+      - Shared
+    dependencies:
+      - target: MagnetoIOSWidgets
+    info:
+      path: MagnetoIOS-Info.plist
+      properties:
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        CFBundleDisplayName: Magneto
+        NSMicrophoneUsageDescription: "Magneto enregistre le micro pendant la dictée."
+        NSSpeechRecognitionUsageDescription: "Magneto peut transcrire localement via la reconnaissance vocale d'Apple."
+        # Required with AudioRecordingIntent: the system cuts a background recording that
+        # has no Live Activity.
+        NSSupportsLiveActivities: true
+        UIBackgroundModes: [audio]
+        # The dictation journal is written to Documents, and these two keys are what make
+        # that folder appear in the Files app.
+        UIFileSharingEnabled: true
+        LSSupportsOpeningDocumentsInPlace: true
+        UILaunchScreen: {}
+        UISupportedInterfaceOrientations:
+          - UIInterfaceOrientationPortrait
+          - UIInterfaceOrientationLandscapeLeft
+          - UIInterfaceOrientationLandscapeRight
+          - UIInterfaceOrientationPortraitUpsideDown
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.hkabache.magneto.ios
+        PRODUCT_NAME: Magneto
+        TARGETED_DEVICE_FAMILY: "1"
+        CODE_SIGN_STYLE: Automatic
+        DEVELOPMENT_TEAM: AQ7LZD44WD
+        GENERATE_INFOPLIST_FILE: true
+
+  MagnetoIOSWidgets:
+    type: app-extension
+    platform: iOS
+    sources:
+      - MagnetoIOSWidgets
+      # The activity's state type is the only thing the extension shares with the app.
+      - MagnetoIOS/Activity
+    info:
+      path: MagnetoIOSWidgets-Info.plist
+      properties:
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        CFBundleDisplayName: Magneto
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.widgetkit-extension
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.hkabache.magneto.ios.widgets
+        PRODUCT_NAME: MagnetoWidgets
+        TARGETED_DEVICE_FAMILY: "1"
+        CODE_SIGN_STYLE: Automatic
+        DEVELOPMENT_TEAM: AQ7LZD44WD
+        GENERATE_INFOPLIST_FILE: true

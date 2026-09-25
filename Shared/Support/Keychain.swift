@@ -59,7 +59,12 @@ enum Keychain {
         if status == errSecItemNotFound {
             var add = base
             add.merge(attributes) { _, new in new }
-            SecItemAdd(add as CFDictionary, nil)
+            let added = SecItemAdd(add as CFDictionary, nil)
+            if added != errSecSuccess {
+                Log.keychain.error("ajout refusé pour \(account, privacy: .public) : \(added)")
+            }
+        } else if status != errSecSuccess {
+            Log.keychain.error("mise à jour refusée pour \(account, privacy: .public) : \(status)")
         }
     }
 

@@ -20,6 +20,7 @@ enum Log {
     static let pipeline = Logger(subsystem: subsystem, category: "pipeline")
     static let transcription = Logger(subsystem: subsystem, category: "transcription")
     static let paste = Logger(subsystem: subsystem, category: "paste")
+    static let keychain = Logger(subsystem: subsystem, category: "keychain")
 }
 
 struct Stopwatch {

@@ -61,7 +61,9 @@ jobs:
           # Le préfixe conventionnel classe les commits, il ne dit rien à qui lit ce qui
           # change dans son app, et le commit de bump n'apprend rien de plus : le numéro
           # est déjà le titre de la release.
-          SUBJECTS="$(git log --no-merges --reverse --invert-grep --grep='^chore: version ' \
+          # Le scope (ios) marque un commit qui ne change rien au Mac, et ces notes sont
+          # lues par les utilisateurs du Mac dans la fenêtre de Sparkle.
+          SUBJECTS="$(git log --no-merges --reverse --invert-grep --grep='^chore: version ' --grep='^[a-z]*(ios): ' \
             --format='%s' "${PREVIOUS:+$PREVIOUS..}$GITHUB_REF_NAME" \
             | sed -E 's/^(feat|fix|docs|refactor|chore|ci|perf|test|style)(\([^)]*\))?: //')"
           if [ -z "$SUBJECTS" ]; then

@@ -1,6 +1,6 @@
 build/
 *.xcodeproj
-Magneto-Info.plist
+*-Info.plist
 .DS_Store
 legacy/
 .claude/

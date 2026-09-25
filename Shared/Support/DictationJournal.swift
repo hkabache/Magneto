@@ -83,11 +83,18 @@ enum DictationJournal {
         return relative
     }
 
+    /// Application Support on the Mac, where the README sends people. Documents on the
+    /// iPhone: it is the only folder the Files app shows, and a journal nobody can open
+    /// measures nothing.
     private static func directory() -> URL? {
-        FileManager.default
+        #if os(iOS)
+        return FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first
+        #else
+        return FileManager.default
             .urls(for: .applicationSupportDirectory, in: .userDomainMask)
             .first?
             .appendingPathComponent("Magneto")
+        #endif
     }
 
     /// One file per day: a comparison is made on a day's worth of dictation, and a single

@@ -52,6 +52,14 @@ enum KeyCheck {
         return (try? JSONDecoder().decode(Body.self, from: data))?.detail?.status == "quota_exceeded"
     }
 
+    /// Where the key of an account is created, opened from the key field on both apps.
+    static func keysPage(for account: String) -> URL? {
+        switch account {
+        case Keychain.elevenLabs: return URL(string: "https://elevenlabs.io/app/api/api-keys")
+        default: return nil
+        }
+    }
+
     private static func provider(_ account: String) -> String {
         switch account {
         case Keychain.elevenLabs: return "ElevenLabs"

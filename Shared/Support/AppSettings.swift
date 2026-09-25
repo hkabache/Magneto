@@ -1,6 +1,7 @@
 import Foundation
 import SwiftUI
 
+#if os(macOS)
 enum OverlayPosition: String, CaseIterable, Identifiable {
     case top, bottom, none
 
@@ -14,13 +15,18 @@ enum OverlayPosition: String, CaseIterable, Identifiable {
         }
     }
 }
+#endif
 
+/// One settings object for both apps. The two macOS-only settings stay here under a
+/// condition rather than in a subclass: they are two properties, and every screen that
+/// reads settings keeps a single type to talk to.
 @MainActor
 final class AppSettings: ObservableObject {
     static let shared = AppSettings()
 
     private let defaults = UserDefaults.standard
 
+    #if os(macOS)
     @Published var overlayPosition: OverlayPosition {
         didSet { defaults.set(overlayPosition.rawValue, forKey: "overlayPosition") }
     }
@@ -30,6 +36,7 @@ final class AppSettings: ObservableObject {
             CapsLockDelay.apply(noDelay: capsLockNoDelay)
         }
     }
+    #endif
     @Published var straightQuotes: Bool {
         didSet { defaults.set(straightQuotes, forKey: "straightQuotes") }
     }
@@ -57,12 +64,15 @@ final class AppSettings: ObservableObject {
     }
 
     private init() {
+        #if os(macOS)
         overlayPosition = OverlayPosition(rawValue: defaults.string(forKey: "overlayPosition") ?? "") ?? .bottom
         capsLockNoDelay = defaults.bool(forKey: "capsLockNoDelay")
+        #endif
         straightQuotes = defaults.object(forKey: "straightQuotes") as? Bool ?? true
         dictationJournal = defaults.bool(forKey: "dictationJournal")
         customWords = defaults.stringArray(forKey: "customWords") ?? []
 
+        #if os(macOS)
         // The HID override dies with the login session and `didSet` never fires from
         // `init`, so an enabled option has to be re-applied here at every launch.
         // Left untouched when disabled: no reason to write a system property that
@@ -70,6 +80,7 @@ final class AppSettings: ObservableObject {
         if capsLockNoDelay {
             CapsLockDelay.apply(noDelay: true)
         }
+        #endif
     }
 
     func addCustomWord(_ word: String) {

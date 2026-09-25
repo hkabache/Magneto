@@ -162,7 +162,7 @@ final class AppState: ObservableObject {
         }
         // Duration comes from the file, not the recorder: a recorder that stopped on
         // its own (mic unplugged) reports 0 and the audio would be silently dropped.
-        let duration = audioDuration(of: url)
+        let duration = AudioFile.duration(of: url)
         guard duration >= 0.5 else {
             Log.pipeline.notice("audio ignoré : \(duration, format: .fixed(precision: 2)) s")
             try? FileManager.default.removeItem(at: url)
@@ -238,13 +238,6 @@ final class AppState: ObservableObject {
                 Log.paste.notice("texte collé : \(ruled.count) caractères")
             }
         }
-    }
-
-    private func audioDuration(of url: URL) -> TimeInterval {
-        guard let file = try? AVAudioFile(forReading: url) else { return 0 }
-        let rate = file.fileFormat.sampleRate
-        guard rate > 0 else { return 0 }
-        return Double(file.length) / rate
     }
 
     private func pushHistory(_ text: String) {
