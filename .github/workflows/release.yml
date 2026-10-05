@@ -58,34 +58,47 @@ jobs:
         run: |
           set -euo pipefail
           PREVIOUS="$(git describe --tags --abbrev=0 "$GITHUB_REF_NAME^" 2>/dev/null || true)"
-          # Le préfixe conventionnel classe les commits, il ne dit rien à qui lit ce qui
-          # change dans son app, et le commit de bump n'apprend rien de plus : le numéro
-          # est déjà le titre de la release.
-          # Le scope (ios) marque un commit qui ne change rien au Mac, et ces notes sont
-          # lues par les utilisateurs du Mac dans la fenêtre de Sparkle.
-          SUBJECTS="$(git log --no-merges --reverse --invert-grep --grep='^chore: version ' --grep='^[a-z]*(ios): ' \
-            --format='%s' "${PREVIOUS:+$PREVIOUS..}$GITHUB_REF_NAME" \
-            | sed -E 's/^(feat|fix|docs|refactor|chore|ci|perf|test|style)(\([^)]*\))?: //')"
-          if [ -z "$SUBJECTS" ]; then
-            echo "::error::aucun commit à décrire depuis ${PREVIOUS:-le début du dépôt}"
-            exit 1
+
+          # La section de CHANGELOG.md écrite pour cette version, en phrases pour qui
+          # met à jour son app : du titre « ## 0.4.0 » jusqu'au titre suivant.
+          awk -v version="$VERSION" '
+            /^## / { inside = ($2 == version); next }
+            inside
+          ' CHANGELOG.md 2>/dev/null | sed -e '/./,$!d' > "$RUNNER_TEMP/section.md" || true
+
+          if [ -s "$RUNNER_TEMP/section.md" ]; then
+            cp "$RUNNER_TEMP/section.md" "$RUNNER_TEMP/notes.md"
+          else
+            # Faute de section, les sujets des commits, qui restent des titres : le
+            # préfixe conventionnel retiré, une majuscule et un point ajoutés. Le commit
+            # de bump n'apprend rien, le numéro est déjà le titre de la release, et le
+            # scope (ios) marque un commit qui ne change rien au Mac, alors que ces notes
+            # sont lues par les utilisateurs du Mac dans la fenêtre de Sparkle.
+            echo "::warning::pas de section $VERSION dans CHANGELOG.md, notes tirées des commits"
+            SUBJECTS="$(git log --no-merges --reverse --invert-grep --grep='^chore: version ' --grep='^[a-z]*(ios): ' \
+              --format='%s' "${PREVIOUS:+$PREVIOUS..}$GITHUB_REF_NAME" \
+              | sed -E 's/^(feat|fix|docs|refactor|chore|ci|perf|test|style)(\([^)]*\))?: //' \
+              | awk '{ print toupper(substr($0, 1, 1)) substr($0, 2) ($0 ~ /[.!?]$/ ? "" : ".") }')"
+            if [ -z "$SUBJECTS" ]; then
+              echo "::error::aucun commit à décrire depuis ${PREVIOUS:-le début du dépôt}"
+              exit 1
+            fi
+            printf '%s\n' "$SUBJECTS" | sed 's/^/- /' > "$RUNNER_TEMP/notes.md"
           fi
 
-          printf '%s\n' "$SUBJECTS" | sed 's/^/- /' > "$RUNNER_TEMP/notes.md"
+          # Sparkle rend la description comme du HTML : le texte est échappé, et seules
+          # les puces et les paragraphes deviennent des balises.
+          sed -e 's/&/\&amp;/g' -e 's/</\&lt;/g' -e 's/>/\&gt;/g' "$RUNNER_TEMP/notes.md" | awk '
+            /^- / { if (!list) { print "<ul>"; list = 1 } print "<li>" substr($0, 3) "</li>"; next }
+            list { print "</ul>"; list = 0 }
+            /./ { print "<p>" $0 "</p>" }
+            END { if (list) print "</ul>" }
+          ' > "$RUNNER_TEMP/notes.html"
+
           if [ -n "$PREVIOUS" ]; then
             printf '\n**Toutes les modifications** : https://github.com/%s/compare/%s...%s\n' \
               "$GITHUB_REPOSITORY" "$PREVIOUS" "$GITHUB_REF_NAME" >> "$RUNNER_TEMP/notes.md"
           fi
-
-          # Sparkle rend la description comme du HTML : les sujets sont échappés, les
-          # balises de la liste sont les seules à ne pas l'être.
-          {
-            echo "<ul>"
-            printf '%s\n' "$SUBJECTS" \
-              | sed -e 's/&/\&amp;/g' -e 's/</\&lt;/g' -e 's/>/\&gt;/g' \
-                    -e 's|^|<li>|' -e 's|$|</li>|'
-            echo "</ul>"
-          } > "$RUNNER_TEMP/notes.html"
 
           cat "$RUNNER_TEMP/notes.md"
 

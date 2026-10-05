@@ -97,45 +97,6 @@ log show --predicate 'subsystem == "com.hkabache.magneto"' --last 1d --style com
 
 Le réglage **Journal des dictées** répond à une autre question : ce que valent les moteurs les uns contre les autres, et ce que la normalisation des guillemets a changé. Il écrit dans `~/Library/Application Support/Magneto` chaque dictée, son audio, et son texte avant et après, avec le nombre de mots modifiés. Contrairement au journal système, **ces fichiers contiennent le texte dicté en clair et les enregistrements**, soit environ 2 Mo par minute dictée. Il est désactivé par défaut : on l'active le temps d'une comparaison, puis on supprime le dossier.
 
-## Développement
-
-Xcode 26 et [xcodegen](https://github.com/yonaskolb/XcodeGen) (`brew install xcodegen`), qui génère `Magneto.xcodeproj` à partir de `project.yml`.
-
-```bash
-./scripts/dev.sh       # build Debug + installation dans /Applications + lancement
-./scripts/install.sh   # build Release + installation dans /Applications + lancement
-xcodebuild test -project Magneto.xcodeproj -scheme Magneto -destination 'platform=macOS'
-```
-
-Les tests couvrent ce qui décide du texte livré sans passer par le réseau : la normalisation des guillemets et ce qu'elle ne doit pas toucher, la mise en forme des keyterms attendue par Scribe, les règles de la course, et l'état de la capture audio.
-
-La cible iPhone se compile et s'installe depuis le terminal, téléphone branché et déverrouillé, son identifiant venant de `xcrun devicectl list devices` :
-
-```bash
-xcodebuild -project Magneto.xcodeproj -scheme MagnetoIOS -destination 'id=<UDID>' \
-  -derivedDataPath ~/Library/Developer/Xcode/DerivedData/Magneto -allowProvisioningUpdates build
-xcrun devicectl device install app --device <UDID> \
-  ~/Library/Developer/Xcode/DerivedData/Magneto/Build/Products/Debug-iphoneos/Magneto.app
-```
-
-Les deux scripts compilent dans `~/Library/Developer/Xcode/DerivedData/Magneto` et suppriment la copie intermédiaire de l'app : Spotlight indexe tout `.app` qu'il trouve, et une recherche « Magneto » dans le Finder doit renvoyer une seule icône.
-
-Un tag `v*` déclenche la release : tests, DMG signé, notarisation par Apple, agrafage du ticket, signature du flux Sparkle, publication du DMG et de l'`appcast.xml` que l'app viendra lire. Le DMG est publié sous un nom sans version, `Magneto.dmg`, pour que le bouton de téléchargement du README pointe sur une URL permanente.
-
-### Clés de mise à jour
-
-La paire EdDSA de Sparkle est indépendante du certificat Apple : la clé publique est dans `project.yml`, donc compilée dans chaque copie de l'app, et la clé privée n'apparaît nulle part dans le dépôt.
-
-La perdre n'est pas fatal tant que le certificat Developer ID est intact : Sparkle sait faire tourner les clés, en publiant une version qui change soit le certificat Apple, soit la paire EdDSA, jamais les deux d'un coup. Perdre les deux en même temps, en revanche, obligerait tout le monde à réinstaller l'app à la main. Une seule paire suffit pour toutes les apps qu'on signerait avec Sparkle.
-
-### Signature et permissions
-
-TCC ne mémorise pas « cette app est autorisée » mais une exigence de signature, revérifiée à chaque appel. En ad-hoc, cette exigence porte sur le `cdhash` du binaire : invalidée à chaque compilation, elle fait refuser l'app alors que la case reste cochée dans les Réglages Système. Magneto est signée avec un certificat Developer ID, ce qui déplace l'exigence sur l'identifiant d'équipe du certificat : elle survit aux rebuilds, et au renouvellement du certificat.
-
-Compiler sans ce certificat demande de remplacer `CODE_SIGN_IDENTITY` par `-` dans `project.yml`. L'app fonctionne, mais microphone et accessibilité sont à re-cocher après chaque build.
-
-`install.sh` affiche l'exigence obtenue en fin d'installation. Si `cdhash` y apparaît, le certificat est absent et les autorisations sauteront au prochain build.
-
 ## Licence
 
 MIT augmentée de la [Commons Clause](https://commonsclause.com/).

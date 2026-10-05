@@ -43,6 +43,29 @@ resulting Debug and Release `Magneto.app` copies as real applications, so search
 
 Always verify compilation with xcodebuild before declaring a task done. Fix new warnings immediately.
 
+## Release, update keys and signing
+
+A `v*` tag runs the release: tests, signed DMG, notarization, stapling, signature of the Sparkle feed,
+then publication of the DMG and of the `appcast.xml` the app reads. The DMG is published without a
+version in its name, `Magneto.dmg`, so the README's download button points at a permanent URL.
+Notarization needs every agreement of the Apple developer account in effect: an expired one fails the
+"Notariser et agrafer" step with HTTP 403 "A required agreement is missing or has expired", and only the
+user can sign it, on developer.apple.com.
+
+Sparkle's EdDSA pair is independent of the Apple certificate: the public key is in `project.yml`, so
+compiled into every copy of the app, and the private key appears nowhere in the repository. Losing it is
+not fatal while the Developer ID certificate is intact: Sparkle rotates keys through a version that changes
+either the Apple certificate or the EdDSA pair, never both at once. Losing both would make everyone
+reinstall by hand.
+
+TCC does not remember "this app is allowed" but a signing requirement, checked again on every call.
+Ad-hoc, that requirement is the binary's `cdhash`, invalidated by every build, so the app is refused
+while its box stays ticked in System Settings. The Developer ID certificate moves the requirement onto the
+team identifier, which survives rebuilds and the certificate's renewal. Building without the certificate
+means setting `CODE_SIGN_IDENTITY` to `-` in `project.yml`: the app works, but microphone and
+accessibility have to be ticked again after every build. `install.sh` prints the requirement it got: a
+`cdhash` in it means the certificate is missing and the grants will drop at the next build.
+
 Once a change is finished and compiles, install it without asking, on the Mac (`./scripts/install.sh`) and on
 the iPhone when the change touches it, then check it. The relaunch takes the user's dictation away for a few
 seconds, so never install mid-change, and never quit or launch the app for any other reason.
@@ -58,6 +81,7 @@ runtime `.accessory` was tried and changed nothing: the Release build keeps the 
 
 ```
 project.yml                        XcodeGen spec (source of truth for build settings)
+CHANGELOG.md                       release notes, one section per version, shown by Sparkle
 Shared/                            compiled into every target, no AppKit or UIKit inside
   Transcription/                   TranscriptionClient protocol + chain and race + 3 clients
   PostProcessing/QuotePass.swift   straightens quotation marks, and nothing else
@@ -101,10 +125,15 @@ for Debug would break the signature TCC pins its grants to.
   model they fired zero times, and two damaged a correct text: one stripped the space French wants before
   `?` `!` `;` `:`, which Scribe writes 15 times in 45 dictations, the other forced casing on the fragments
   Scribe deliberately leaves lowercase for someone patching the middle of a sentence.
-- Conventional commits (feat:/fix:/docs:/refactor:/chore:), French commit messages. Subjects ship to
-  users: the release workflow turns them into the release notes, which Sparkle displays in its update
-  window, prefix and version bump stripped. A commit that changes nothing on the Mac carries the `(ios)`
-  scope, `feat(ios): …`, and the workflow drops it from those notes.
+- Conventional commits (feat:/fix:/docs:/refactor:/chore:), French commit messages. A commit that
+  changes nothing on the Mac carries the `(ios)` scope, `feat(ios): …`.
+- Release notes are the `## <version>` section of `CHANGELOG.md`, published as is in Sparkle's update
+  window and on the GitHub release. Write it in the version bump commit, before the tag: full sentences,
+  capitalized and ending with a full stop, « vous », saying what changes for someone who dictates, never
+  how it is coded. Mac changes only, since only Mac users read that window. Without a section the workflow
+  falls back to the commit subjects, `(ios)` and the bump dropped, which reads as a list of titles: the
+  0.4.0 window showed one lowercase fragment, and that is what the section exists to avoid.
+- A version adding a feature bumps the minor number (0.4.0), a fix the patch (0.4.1).
 - Never commit or push without an explicit request from the user.
 - Capture never goes through `AVAudioEngine`: reading its `inputNode` was measured at 3146 ms on AirPods
   against 246 ms for `AVCaptureSession`, because macOS publishes a Bluetooth headset as a microphone
