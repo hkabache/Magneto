@@ -236,16 +236,15 @@ jobs:
             fi
           done
 
+      # La fenêtre qui s'ouvre au double-clic : fond, flèche vers Applications, icônes placées.
       - name: Construire et signer le DMG
         run: |
           set -euo pipefail
-          STAGING="$RUNNER_TEMP/dmg"
-          mkdir -p "$STAGING"
-          cp -R "$APP" "$STAGING/"
-          ln -s /Applications "$STAGING/Applications"
-
-          hdiutil create -volname "Magneto" -srcfolder "$STAGING" \
-            -ov -format UDZO "$DMG"
+          # Épinglé : 1.6.7 est la première version dont le fond s'affiche sur macOS 26.2 et
+          # suivants, les précédentes écrivaient un enregistrement que le Finder refuse.
+          python3 -m venv "$RUNNER_TEMP/dmgbuild"
+          "$RUNNER_TEMP/dmgbuild/bin/pip" install --quiet dmgbuild==1.6.7
+          PATH="$RUNNER_TEMP/dmgbuild/bin:$PATH" ./scripts/dmg/build.sh "$APP" "$PWD/$DMG"
 
           codesign --sign "Developer ID Application" --timestamp "$DMG"
           codesign --verify --verbose=2 "$DMG"

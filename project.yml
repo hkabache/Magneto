@@ -111,6 +111,9 @@ targets:
         INFOPLIST_KEY_CFBundleDisplayName: Magneto
         INFOPLIST_KEY_NSMicrophoneUsageDescription: "Magneto enregistre le micro pendant la dictée."
         INFOPLIST_KEY_NSSpeechRecognitionUsageDescription: "Magneto peut transcrire localement via la reconnaissance vocale d'Apple."
+        # Magneto/AppIcon.icon, an Icon Composer file: actool turns it into the .icns and
+        # the Liquid Glass variants macOS 26 draws.
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
     scheme:
       testTargets:
         - MagnetoTests
@@ -127,6 +130,7 @@ targets:
       - path: Magneto
         excludes:
           - MagnetoApp.swift
+          - AppIcon.icon
     dependencies:
       - package: KeyboardShortcuts
       - package: Sparkle

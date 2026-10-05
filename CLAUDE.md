@@ -52,6 +52,11 @@ Notarization needs every agreement of the Apple developer account in effect: an 
 "Notariser et agrafer" step with HTTP 403 "A required agreement is missing or has expired", and only the
 user can sign it, on developer.apple.com.
 
+The DMG's window (background, arrow, icon positions) comes from `scripts/dmg/`: `background.swift` draws the
+picture, `settings.py` places the icons for dmgbuild, and the two share coordinates. To preview it, install
+`dmgbuild==1.6.7` in a venv and run `scripts/dmg/build.sh <Magneto.app> <out.dmg>`. The Finder writes icon names
+in a dark colour on any background picture, whatever the system appearance, so the background stays light.
+
 Sparkle's EdDSA pair is independent of the Apple certificate: the public key is in `project.yml`, so
 compiled into every copy of the app, and the private key appears nowhere in the repository. Losing it is
 not fatal while the Developer ID certificate is intact: Sparkle rotates keys through a version that changes
@@ -88,6 +93,7 @@ Shared/                            compiled into every target, no AppKit or UIKi
   Support/                         AppSettings (two macOS-only settings under #if), Keychain, KeyCheck, KeyStatus, Log, MagnetoError, DictationJournal, AudioFile, UsageLedger
 Magneto/                           macOS app
   MagnetoApp.swift                 @main, MenuBarExtra (.window style)
+  AppIcon.icon                     Icon Composer file, for now the menu bar's waveform symbol in white on blue
   AppState.swift                   state machine idle/recording/transcribing, pipeline orchestration
   Audio/Recorder.swift             picks a capture path per dictation, publishes level and status
   Audio/SimpleCapture.swift        AVAudioRecorder, built-in microphone only
