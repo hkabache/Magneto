@@ -4,6 +4,11 @@ Ce que voit la fenêtre de mise à jour de Magneto : chaque section est publiée
 quelle avec la version de même numéro. Des phrases pour qui met à jour son app, au
 vouvoiement, sans jargon de développeur.
 
+## 0.4.2
+
+- Magneto a désormais sa propre icône, dans le dossier Applications, le Finder et Spotlight.
+- Le fichier d'installation s'ouvre sur une fenêtre qui explique quoi faire : faites glisser Magneto sur le dossier Applications, puis lancez-la, et son icône apparaît dans la barre des menus.
+
 ## 0.4.1
 
 - Rien ne change dans l'app : cette version rend les notes de mise à jour plus lisibles, rédigées en phrases comme celle-ci plutôt que reprises telles quelles de l'historique du code.
