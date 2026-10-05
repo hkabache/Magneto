@@ -62,7 +62,7 @@ final class Dictation: ObservableObject {
         }
         // Checked after the activity exists: it is the only place this message can show.
         guard AVAudioApplication.shared.recordPermission == .granted else {
-            await abort("Micro non autorisé. Ouvre Magneto pour l'autoriser.")
+            await abort("Micro non autorisé. Ouvrez Magneto pour l'autoriser.")
             return
         }
 
@@ -88,13 +88,18 @@ final class Dictation: ObservableObject {
             }
             self.recorder = recorder
         } catch {
+            // record() says false and nothing else, so the session is described instead:
+            // the failures seemed to follow music, and only this line can confirm it.
+            Log.pipeline.error("micro refusé, \(self.audioContext(session), privacy: .public)")
+            // The recorder writes the file's header on creation, and only stop() removes it.
+            try? FileManager.default.removeItem(at: url)
             deactivate()
             await abort(error.localizedDescription)
             return
         }
         phase = .recording
-        let inputs = session.currentRoute.inputs.map(\.portName).joined(separator: ", ")
-        Log.pipeline.notice("dictée démarrée, entrée \(inputs, privacy: .public)")
+        // The same description on success, or a failure would have nothing to differ from.
+        Log.pipeline.notice("dictée démarrée, \(self.audioContext(session), privacy: .public)")
         watchdog = Task { @MainActor [weak self] in
             try? await Task.sleep(for: .seconds(900))
             guard !Task.isCancelled, let self, self.phase == .recording else { return }
@@ -128,7 +133,8 @@ final class Dictation: ObservableObject {
         let result = await TranscriptionService.transcribe(
             audioURL: url,
             language: settings.language,
-            vocabulary: settings.vocabulary
+            vocabulary: settings.vocabulary,
+            choice: settings.engineChoice
         )
         deactivate()
 
@@ -157,7 +163,7 @@ final class Dictation: ObservableObject {
             }
             pushHistory(ruled)
             Log.pipeline.notice("texte rendu : \(ruled.count) caractères")
-            await end(.ready, detail: closedByWatchdog ? "15 min atteintes, appuie pour copier" : transcription.engine)
+            await end(.ready, detail: closedByWatchdog ? "15 min atteintes, appuyez pour copier" : transcription.engine)
             return ruled
         }
     }
@@ -172,6 +178,17 @@ final class Dictation: ObservableObject {
             try await Task.sleep(for: .milliseconds(300))
             try session.setActive(true)
         }
+    }
+
+    /// What the session looked like when the recorder was asked to start. Carries no
+    /// dictated text, so it belongs in the system journal.
+    private func audioContext(_ session: AVAudioSession) -> String {
+        let inputs = session.currentRoute.inputs.map(\.portName).joined(separator: ", ")
+        return "entrée \(inputs.isEmpty ? "aucune" : inputs)"
+            + ", autre son \(session.isOtherAudioPlaying ? "en cours" : "absent")"
+            + ", son secondaire à couper \(session.secondaryAudioShouldBeSilencedHint ? "oui" : "non")"
+            + ", micro \(session.isInputAvailable ? "disponible" : "indisponible")"
+            + ", \(Int(session.sampleRate)) Hz"
     }
 
     private func deactivate() {

@@ -6,7 +6,7 @@ This file provides guidance to Claude Code when working with this repository.
 
 Magneto is a minimal macOS menu bar dictation app, native Swift/SwiftUI, two SPM dependencies on the Mac (KeyboardShortcuts, Sparkle), none on the iPhone. Distributed outside the App Store: Developer ID signed, notarized, published as a DMG by the release workflow on a `v*` tag. An iPhone target shares the transcription chain and is installed from Xcode, never released.
 
-Pipeline: global hotkey toggle → AVAudioRecorder (wav 16kHz mono) → transcription chain (ElevenLabs Scribe v2 → Apple SpeechAnalyzer) → quote straightening → paste at cursor via synthesized Cmd+V. On the iPhone the toggle is an App Intent run by a shortcut, the pill is a Live Activity, and the shortcut copies the text the intent returns.
+Pipeline: global hotkey toggle → AVAudioRecorder (wav 16kHz mono) → transcription chain (Scribe v2 raced against MAI-Transcribe-2: Scribe if back within 1.5 s, MAI at once past 45 s of audio → Apple SpeechAnalyzer) → quote straightening → paste at cursor via synthesized Cmd+V. On the iPhone the toggle is an App Intent run by a shortcut, the pill is a Live Activity, and the shortcut copies the text the intent returns.
 
 ## Build
 
@@ -43,16 +43,25 @@ resulting Debug and Release `Magneto.app` copies as real applications, so search
 
 Always verify compilation with xcodebuild before declaring a task done. Fix new warnings immediately.
 
-Never launch or kill the app yourself unless explicitly asked: the user keeps a copy running to dictate with, and killing it costs them the tool they are talking to you through.
+Once a change is finished and compiles, install it without asking, on the Mac (`./scripts/install.sh`) and on
+the iPhone when the change touches it, then check it. The relaunch takes the user's dictation away for a few
+seconds, so never install mid-change, and never quit or launch the app for any other reason.
+
+To check the popover on screen, install the Debug build with `./scripts/dev.sh`: computer use only offers
+running apps that have a Dock icon, and the Release build has none, so it is missing from `list_apps`, cannot
+be granted, and its popover is blacked out of every screenshot. The Debug build sets `.regular` at launch
+(`MagnetoApp.init`), shows in the Dock, and is granted as `com.hkabache.magneto`. Removing `LSUIElement` for a
+runtime `.accessory` was tried and changed nothing: the Release build keeps the key. Once the check is done,
+`./scripts/install.sh` puts the Release build back.
 
 ## Layout
 
 ```
 project.yml                        XcodeGen spec (source of truth for build settings)
 Shared/                            compiled into every target, no AppKit or UIKit inside
-  Transcription/                   TranscriptionClient protocol + chain + 2 clients
+  Transcription/                   TranscriptionClient protocol + chain and race + 3 clients
   PostProcessing/QuotePass.swift   straightens quotation marks, and nothing else
-  Support/                         AppSettings (two macOS-only settings under #if), Keychain, KeyCheck, KeyStatus, Log, MagnetoError, DictationJournal, AudioFile
+  Support/                         AppSettings (two macOS-only settings under #if), Keychain, KeyCheck, KeyStatus, Log, MagnetoError, DictationJournal, AudioFile, UsageLedger
 Magneto/                           macOS app
   MagnetoApp.swift                 @main, MenuBarExtra (.window style)
   AppState.swift                   state machine idle/recording/transcribing, pipeline orchestration
@@ -75,7 +84,7 @@ for Debug would break the signature TCC pins its grants to.
 
 ## Conventions
 
-- UI strings are French (personal tool). Code and identifiers in English.
+- UI strings are French (personal tool) and address the user as « vous », as does the README. Code and identifiers in English.
 - API keys go through `Keychain` only. Never log them, never store them in UserDefaults.
 - The system journal never carries the dictated text, and is read with the `log show` command the README
   prints. `DictationJournal` is the only place that text lands, in clear and with the audio, and only while

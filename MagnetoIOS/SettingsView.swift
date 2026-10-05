@@ -8,6 +8,7 @@ struct SettingsView: View {
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.openURL) private var openURL
     @StateObject private var keyStatus = KeyStatus()
+    @ObservedObject private var ledger = UsageLedger.shared
 
     @State private var micGranted = true
     @State private var activitiesEnabled = true
@@ -22,6 +23,7 @@ struct SettingsView: View {
                 status
                 shortcut
                 keys
+                usage
                 vocabulary
                 text
                 recent
@@ -128,11 +130,37 @@ struct SettingsView: View {
 
     private var keys: some View {
         Section {
+            Picker("Moteur", selection: $settings.engineChoice) {
+                ForEach(EngineChoice.allCases) { choice in
+                    Text(choice.label).tag(choice)
+                }
+            }
+            KeyRow(label: "Microsoft", account: Keychain.microsoft, status: keyStatus)
             KeyRow(label: "ElevenLabs", account: Keychain.elevenLabs, status: keyStatus)
         } header: {
             Text("Clés API")
         } footer: {
-            Text("Scribe v2, moteur principal. Sans clé, le moteur Apple hors ligne prend le relais.")
+            Text(EngineChoice.explanation + "\n\nBalayer une clé vers la gauche la supprime.")
+        }
+    }
+
+    // MARK: Consommation
+
+    private var usage: some View {
+        Section {
+            UsageRow(label: "Ce mois-ci", usage: ledger.thisMonth)
+            UsageRow(label: "Mois dernier", usage: ledger.lastMonth)
+            UsageRow(
+                label: "Depuis le \(ledger.since.formatted(.dateTime.day().month(.wide).locale(Locale(identifier: "fr_FR"))))",
+                usage: ledger.sinceReset
+            )
+            Button("Repartir de zéro") {
+                ledger.reset()
+            }
+        } header: {
+            Text("Consommation")
+        } footer: {
+            Text(Usage.explanation + "\n\nCompté sur ce téléphone seulement.")
         }
     }
 
@@ -162,7 +190,7 @@ struct SettingsView: View {
             Text("Vocabulaire")
         } footer: {
             Text(hasAnyKey
-                ? "Transmis à Scribe comme référence orthographique. \(settings.customWords.count) terme\(settings.customWords.count > 1 ? "s" : "")."
+                ? "Transmis aux moteurs en ligne comme référence orthographique. \(settings.customWords.count) terme\(settings.customWords.count > 1 ? "s" : "")."
                 : "Sans clé API, ces termes ne partent vers aucun moteur.")
         }
         .disabled(!hasAnyKey)
@@ -310,8 +338,7 @@ private struct KeyRow: View {
         .swipeActions(edge: .trailing) {
             if isPresent {
                 Button("Supprimer", role: .destructive) {
-                    Keychain.delete(account)
-                    status.load()
+                    status.remove(account)
                 }
             }
         }
@@ -351,5 +378,24 @@ private struct KeyRow: View {
     private func commit(_ trimmed: String) {
         value = ""
         Task { await status.save(trimmed, account: account, label: label) }
+    }
+}
+
+/// No hover on a phone, so the minutes and each engine's share sit under the total.
+private struct UsageRow: View {
+    let label: String
+    let usage: Usage
+
+    var body: some View {
+        LabeledContent {
+            VStack(alignment: .trailing, spacing: 2) {
+                Text(usage.summary)
+                Text(usage.detail)
+                    .font(.caption)
+            }
+            .monospacedDigit()
+        } label: {
+            Text(label)
+        }
     }
 }

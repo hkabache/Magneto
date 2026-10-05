@@ -129,7 +129,7 @@ final class AppState: ObservableObject {
                 }
             }
             guard granted else {
-                self.fail("Accès micro refusé. Autorise Magneto dans Réglages Système > Confidentialité et sécurité > Microphone.")
+                self.fail("Accès micro refusé. Autorisez Magneto dans Réglages Système > Confidentialité et sécurité > Microphone.")
                 return
             }
             guard self.phase == .idle else { return }
@@ -202,7 +202,8 @@ final class AppState: ObservableObject {
         let result = await TranscriptionService.transcribe(
             audioURL: url,
             language: settings.language,
-            vocabulary: vocabulary
+            vocabulary: vocabulary,
+            choice: settings.engineChoice
         )
         guard !Task.isCancelled else { return }
 
@@ -233,7 +234,7 @@ final class AppState: ObservableObject {
             let outcome = await Paster.deliver(ruled)
             if outcome == .copiedOnly {
                 Log.paste.error("collage refusé : permission Accessibilité absente")
-                lastError = "Collage impossible sans la permission Accessibilité. Le texte est copié : fais Cmd+V."
+                lastError = "Collage impossible sans la permission Accessibilité. Le texte est copié : faites Cmd+V."
             } else {
                 Log.paste.notice("texte collé : \(ruled.count) caractères")
             }

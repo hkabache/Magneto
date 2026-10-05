@@ -18,7 +18,7 @@ final class KeyStatus: ObservableObject {
     /// but probes nothing, and a green tick claiming validity would then be a guess.
     @Published private(set) var validated: Set<String> = []
 
-    private static let accounts = [Keychain.elevenLabs]
+    private static let accounts = [Keychain.microsoft, Keychain.elevenLabs]
 
     /// Probes anything still without a verdict, so opening the tab is enough to know
     /// where each key stands. A verdict is kept for the whole session, so this costs
@@ -42,6 +42,14 @@ final class KeyStatus: ObservableObject {
         }
         present.insert(account)
         await verify(key, account: account)
+    }
+
+    /// The verdict goes with the key: a tick left behind would claim a key that is gone.
+    func remove(_ account: String) {
+        Keychain.delete(account)
+        present.remove(account)
+        validated.remove(account)
+        problems[account] = nil
     }
 
     private func verify(_ key: String, account: String) async {

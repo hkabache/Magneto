@@ -17,6 +17,9 @@ enum KeyCheck {
     }
 
     static func run(account: String, key: String) async -> Outcome {
+        if account == Keychain.microsoft {
+            return await microsoft(key: key)
+        }
         guard let request = request(account: account, key: key) else {
             return .valid
         }
@@ -56,6 +59,7 @@ enum KeyCheck {
     static func keysPage(for account: String) -> URL? {
         switch account {
         case Keychain.elevenLabs: return URL(string: "https://elevenlabs.io/app/api/api-keys")
+        case Keychain.microsoft: return URL(string: "https://portal.azure.com/#create/Microsoft.CognitiveServicesSpeechServices")
         default: return nil
         }
     }
@@ -63,6 +67,7 @@ enum KeyCheck {
     private static func provider(_ account: String) -> String {
         switch account {
         case Keychain.elevenLabs: return "ElevenLabs"
+        case Keychain.microsoft: return "Microsoft"
         default: return account
         }
     }
@@ -97,5 +102,47 @@ enum KeyCheck {
         request.setValue(form.contentType, forHTTPHeaderField: "Content-Type")
         request.httpBody = form.finalized()
         return request
+    }
+
+    /// An Azure key is refused outside its own region, so the probe goes to every region
+    /// serving MAI-Transcribe at once, and the one that accepts is kept for dictation.
+    /// The audio part is not audio: the key is authenticated, the body rejected, and
+    /// nothing is billed.
+    private static func microsoft(key: String) async -> Outcome {
+        let statuses = await withTaskGroup(of: (String, Int?).self) { group in
+            for region in MicrosoftClient.regions {
+                group.addTask {
+                    guard let definition = try? MicrosoftClient.definition(language: "fr", vocabulary: []),
+                          let probe = try? MicrosoftClient.request(
+                              key: key, region: region, definition: definition, audio: Data("probe".utf8)
+                          )
+                    else { return (region, nil) }
+                    var request = probe.0
+                    request.timeoutInterval = 15
+                    let response = try? await URLSession.shared.upload(for: request, from: probe.1)
+                    return (region, (response?.1 as? HTTPURLResponse)?.statusCode)
+                }
+            }
+            var result: [(String, Int?)] = []
+            for await status in group {
+                result.append(status)
+            }
+            return result
+        }
+        guard let accepted = statuses.first(where: { $0.1.map { $0 != 401 && $0 != 403 } ?? false }) else {
+            if statuses.allSatisfy({ $0.1 == nil }) {
+                return .refused("Vérification impossible, réseau indisponible")
+            }
+            MicrosoftClient.region = nil
+            // An Azure key works in its own region only, so a refusal everywhere almost
+            // always means a resource created in a region that does not serve the model.
+            return .refused("Clé refusée. MAI-Transcribe-2 n'est servi qu'en North Europe, East US, West US, West US 2, Central India et Southeast Asia : une ressource créée ailleurs ne marche pas")
+        }
+        MicrosoftClient.region = accepted.0
+        Log.transcription.notice("clé Microsoft acceptée en \(accepted.0, privacy: .public)")
+        if accepted.1 == 429 {
+            return .unusable("Quota Microsoft atteint")
+        }
+        return .valid
     }
 }

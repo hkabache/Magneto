@@ -32,15 +32,15 @@ Une fois par semaine, Magneto regarde s'il existe une version plus récente, et 
 
 **Gratuite, et elle le restera.** La licence interdit de la vendre.
 
-**Sans clé, ton audio ne quitte pas ta machine.** Le moteur de transcription d'Apple tourne en local. Seule exception, une fois : si le modèle de dictée française n'est pas déjà installé sur le Mac, macOS le télécharge chez Apple à la première utilisation. Une clé API n'est utile que pour monter en qualité, et reste facultative.
+**Sans clé, votre audio ne quitte pas votre machine.** Le moteur de transcription d'Apple tourne en local. Seule exception, une fois : si le modèle de dictée française n'est pas déjà installé sur le Mac, macOS le télécharge chez Apple à la première utilisation. Une clé API n'est utile que pour monter en qualité, et reste facultative.
 
-**Tu paies l'usage, pas un abonnement.** Les services équivalents se facturent au mois, que tu dictes ou non. Ici tu règles directement le fournisseur, au tarif public et pour les secondes que tu as réellement dictées, sans intermédiaire qui prend sa marge au passage.
+**Vous payez l'usage, pas un abonnement.** Les services équivalents se facturent au mois, que vous dictiez ou non. Ici vous réglez directement le fournisseur, au tarif public et pour les secondes que vous avez réellement dictées, sans intermédiaire qui prend sa marge au passage.
 
-**Tes clés, ton audio.** Les clés sont les tiennes et vivent dans le trousseau macOS. L'audio part de ton Mac vers le fournisseur que tu as choisi, et nulle part ailleurs : aucun serveur intermédiaire, aucun compte à créer, aucune télémétrie, aucun outil d'analytique.
+**Vos clés, votre audio.** Les clés sont les vôtres et vivent dans le trousseau macOS. L'audio part de votre Mac vers le ou les fournisseurs dont vous avez mis la clé, et nulle part ailleurs : aucun serveur intermédiaire, aucun compte à créer, aucune télémétrie, aucun outil d'analytique.
 
-Pour dicter, la seule adresse contactée est `api.elevenlabs.io`, et un seul appel réseau par dictée. S'y ajoutent Apple, une seule fois et seulement si le modèle de dictée local doit être installé, et GitHub, une fois par semaine et à chaque clic sur « Vérifier les mises à jour », le temps de lire le fichier qui décrit la dernière version, puis de télécharger le DMG si tu acceptes la mise à jour. Le code est public pour que tu puisses le vérifier plutôt que me croire.
+Adresses contactées : pour dicter, `api.elevenlabs.io` et `<région>.api.cognitive.microsoft.com`, selon les clés renseignées ; coller la clé Microsoft interroge une fois les régions qui servent MAI-Transcribe-2. Apple, une seule fois, si le modèle de dictée local doit être installé. GitHub, une fois par semaine et à chaque « Vérifier les mises à jour ». Le code est public pour que vous puissiez le vérifier plutôt que me croire.
 
-C'est la différence de fond avec un service qui mutualise ses propres clés : au lieu d'ignorer ce que devient ta voix, tu contractes directement avec le fournisseur, tu lis ses conditions, et tu révoques ta clé quand tu veux.
+C'est la différence de fond avec un service qui mutualise ses propres clés : au lieu d'ignorer ce que devient votre voix, vous contractez directement avec le fournisseur, vous lisez ses conditions, et vous révoquez votre clé quand vous voulez.
 
 **Une mise à jour ne s'installe que si je l'ai signée.** La clé privée qui signe le flux ne quitte jamais mes secrets, la clé publique correspondante est compilée dans l'app. Quelqu'un qui prendrait le contrôle du dépôt pourrait publier ce qu'il veut, Magneto refuserait de l'installer.
 
@@ -49,8 +49,10 @@ C'est la différence de fond avec un service qui mutualise ses propres clés : a
 ```
 Option+Espace → enregistrement micro (Échap pour annuler)
 Option+Espace → transcription :
-  1. ElevenLabs Scribe v2 (principal, no_verbatim + keyterms)
-  2. Apple SpeechAnalyzer (fallback local, hors-ligne)
+  1. Course (par défaut, deux clés) : ElevenLabs Scribe v2 et Microsoft MAI-Transcribe-2
+     reçoivent le même audio. Scribe est gardé s'il répond en 1,5 s, sinon MAI ;
+     au-delà de 45 s d'audio, MAI sans attendre. Un moteur choisi seul : lui, puis l'autre.
+  2. Apple SpeechAnalyzer (local, hors ligne)
 → guillemets « » remplacés par des " (désactivable, seule modification du texte)
 → collage au curseur (Cmd+V synthétique, presse-papiers restauré)
 ```
@@ -61,7 +63,7 @@ La même dictée, sans fenêtre : un raccourci la démarre, le même l'arrête, 
 
 - **Bouton Action** ou **Toucher le dos** lancent le raccourci « Dicter » : un appui démarre, le suivant arrête et copie
 - la **pilule** de la Dynamic Island montre l'enregistrement et son chrono, puis la transcription, puis « Texte prêt »
-- l'**app** ne sert qu'aux réglages, clé, vocabulaire et journal, plus une dictée de secours qui copie directement
+- l'**app** ne sert qu'aux réglages, clés, vocabulaire et journal, plus une dictée de secours qui copie directement
 
 Installation : depuis Xcode sur le téléphone, cible `MagnetoIOS`, l'app n'est pas distribuée. Dans l'app, **Installer le raccourci Dicter** l'ajoute à Raccourcis en deux touches, puis Réglages > Bouton Action > Raccourci > Dicter, et Réglages > Accessibilité > Toucher > Toucher le dos > Dicter. Au premier passage, Raccourcis demande deux fois « toujours autoriser », pour le micro et pour le collage.
 
@@ -76,10 +78,10 @@ Le journal des dictées s'écrit dans Fichiers > Sur mon iPhone > Magneto. Les a
 Tout se passe dans le popover de la barre de menus :
 
 - **Général** : raccourci, position de la fenêtre d'enregistrement, délai Caps Lock, lancement au démarrage, guillemets droits, journal des dictées
-- **Vocabulaire** : mots et termes techniques envoyés au moteur de transcription comme keyterms. À cette liste s'ajoute un vocabulaire intégré, non affiché et non modifiable, qui couvre les noms propres du produit lui-même (Magneto, ElevenLabs) pour qu'on puisse parler de l'app à l'app sans rien configurer
-- **Clés API** : la clé ElevenLabs, seule clé de l'app. Elle vit dans le trousseau macOS, sous le service `com.hkabache.magneto` et le compte `elevenlabs` : supprimer l'app ne l'efface pas, et une réinstallation la retrouve
+- **Vocabulaire** : termes envoyés aux moteurs en ligne comme référence orthographique, plus un vocabulaire intégré et invisible (Magneto, ElevenLabs)
+- **Clés API** : le moteur (Course, Microsoft ou ElevenLabs) et les deux clés, ElevenLabs et Microsoft (Azure Speech Services, offre S0, région North Europe ou une autre servant MAI-Transcribe-2). Elles vivent dans le trousseau macOS, service `com.hkabache.magneto`, et survivent à une réinstallation. Dessous, la consommation : dictées et dollars du mois, du mois dernier et depuis une date qu'on remet à zéro, calculés sur la durée de l'audio au tarif public. Que des chiffres, aucun texte
 
-Sans clé, Magneto fonctionne avec le moteur Apple hors ligne.
+Scribe rend le texte le plus propre, sans hésitations, mais ralentit avec la longueur : près de 3 s au-delà de 45 s d'audio. MAI répond une minute d'audio en une seconde environ et garde davantage les « du coup » et « en fait ». La course coûte deux transcriptions, quelques centimes. Sans clé, Magneto utilise le moteur Apple hors ligne.
 
 **Guillemets droits** est la seule modification que Magneto apporte au texte du moteur : les `« »` et les guillemets courbes deviennent des `"` droits. Décoché, le texte est collé exactement tel que le moteur l'a rendu.
 
@@ -105,7 +107,7 @@ Xcode 26 et [xcodegen](https://github.com/yonaskolb/XcodeGen) (`brew install xco
 xcodebuild test -project Magneto.xcodeproj -scheme Magneto -destination 'platform=macOS'
 ```
 
-Les tests couvrent ce qui décide du texte livré sans passer par le réseau : la normalisation des guillemets et ce qu'elle ne doit pas toucher, la mise en forme des keyterms attendue par Scribe, et l'état de la capture audio.
+Les tests couvrent ce qui décide du texte livré sans passer par le réseau : la normalisation des guillemets et ce qu'elle ne doit pas toucher, la mise en forme des keyterms attendue par Scribe, les règles de la course, et l'état de la capture audio.
 
 La cible iPhone se compile et s'installe depuis le terminal, téléphone branché et déverrouillé, son identifiant venant de `xcrun devicectl list devices` :
 
@@ -138,6 +140,6 @@ Compiler sans ce certificat demande de remplacer `CODE_SIGN_IDENTITY` par `-` da
 
 MIT augmentée de la [Commons Clause](https://commonsclause.com/).
 
-Concrètement : tu peux utiliser Magneto librement, y compris au travail, l'étudier, le modifier et le partager. La seule chose interdite est de le vendre, ou de vendre un produit ou un service dont la valeur vient pour l'essentiel de Magneto.
+Concrètement : vous pouvez utiliser Magneto librement, y compris au travail, l'étudier, le modifier et le partager. La seule chose interdite est de le vendre, ou de vendre un produit ou un service dont la valeur vient pour l'essentiel de Magneto.
 
 Ce n'est donc pas une licence open source au sens de l'Open Source Initiative, mais une licence à source visible. Le code est fourni tel quel, sans garantie.

@@ -43,6 +43,9 @@ final class AppSettings: ObservableObject {
     @Published var dictationJournal: Bool {
         didSet { defaults.set(dictationJournal, forKey: "dictationJournal") }
     }
+    @Published var engineChoice: EngineChoice {
+        didSet { defaults.set(engineChoice.rawValue, forKey: "engineChoice") }
+    }
     @Published var customWords: [String] {
         didSet { defaults.set(customWords, forKey: "customWords") }
     }
@@ -71,6 +74,9 @@ final class AppSettings: ObservableObject {
         straightQuotes = defaults.object(forKey: "straightQuotes") as? Bool ?? true
         dictationJournal = defaults.bool(forKey: "dictationJournal")
         customWords = defaults.stringArray(forKey: "customWords") ?? []
+        // Scribe's text is the cleaner, MAI-Transcribe-2's the faster by far: the race
+        // keeps the first whenever it comes back in time, on both devices.
+        engineChoice = EngineChoice(rawValue: defaults.string(forKey: "engineChoice") ?? "") ?? .race
 
         #if os(macOS)
         // The HID override dies with the login session and `didSet` never fires from

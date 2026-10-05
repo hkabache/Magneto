@@ -153,7 +153,7 @@ private struct AccessibilitySetup: View {
                 Text("Autorisation requise")
                     .font(.headline)
             }
-            Text("Magneto colle le texte dicté là où se trouve ton curseur. macOS exige pour cela l'autorisation Accessibilité.")
+            Text("Magneto colle le texte dicté là où se trouve votre curseur. macOS exige pour cela l'autorisation Accessibilité.")
                 .font(.callout)
                 .fixedSize(horizontal: false, vertical: true)
             Button {
@@ -165,8 +165,8 @@ private struct AccessibilitySetup: View {
             .controlSize(.large)
             .buttonStyle(.borderedProminent)
             VStack(alignment: .leading, spacing: 4) {
-                Text("1. Ouvre les réglages depuis la fenêtre macOS, puis coche Magneto")
-                Text("2. Reviens ici, la fenêtre se met à jour toute seule")
+                Text("1. Ouvrez les réglages depuis la fenêtre macOS, puis cochez Magneto")
+                Text("2. Revenez ici, la fenêtre se met à jour toute seule")
             }
             .font(.caption)
             .foregroundStyle(.secondary)
@@ -497,14 +497,14 @@ private struct VocabularyTab: View {
 
             // Kept outside the block above, otherwise the link would be disabled too.
             if hasAnyKey {
-                Text("Ces termes sont transmis au moteur de transcription et servent de référence orthographique au nettoyage.")
+                Text("Ces termes sont transmis aux moteurs en ligne comme référence orthographique.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
                     .padding(.top, 4)
             } else {
                 KeyRequiredNotice(
-                    text: "Sans clé API, ces termes ne partent vers aucun moteur. Ajoute une clé dans l'onglet [Clés API](magneto:keys).",
+                    text: "Sans clé API, ces termes ne partent vers aucun moteur. Ajoutez une clé dans l'onglet [Clés API](magneto:keys).",
                     onOpenKeys: onOpenKeys
                 )
                 .font(.caption)
@@ -517,7 +517,7 @@ private struct VocabularyTab: View {
         // needs a set height rather than its content's.
         .frame(height: 290)
         .onAppear {
-            hasAnyKey = Keychain.exists(Keychain.elevenLabs)
+            hasAnyKey = Keychain.exists(Keychain.elevenLabs) || Keychain.exists(Keychain.microsoft)
         }
     }
 
@@ -578,27 +578,103 @@ private struct GradientButton: NSViewRepresentable {
 
 private struct KeysTab: View {
     @ObservedObject var status: KeyStatus
+    @ObservedObject private var ledger = UsageLedger.shared
+    @EnvironmentObject private var settings: AppSettings
 
     var body: some View {
         Form {
             Section {
+                HelpRow(
+                    "Moteur",
+                    help: EngineChoice.explanation
+                ) {
+                    Picker("", selection: $settings.engineChoice) {
+                        ForEach(EngineChoice.allCases) { choice in
+                            Text(choice.label).tag(choice)
+                        }
+                    }
+                    .labelsHidden()
+                }
+                KeyField(
+                    label: "Microsoft",
+                    help: """
+                    MAI-Transcribe-2 : environ une seconde pour une minute d'audio, garde davantage les hésitations
+
+                    Créez la ressource Azure Speech en North Europe.
+                    """,
+                    account: Keychain.microsoft,
+                    status: status
+                )
                 KeyField(
                     label: "ElevenLabs",
-                    help: "Scribe v2, moteur principal",
+                    help: "Scribe v2 : le texte le plus propre, plus lent sur les longues dictées",
                     account: Keychain.elevenLabs,
                     status: status
                 )
             } header: {
                 Text("Transcription")
             } footer: {
-                Text("Sans clé, le moteur Apple hors ligne prend le relais.")
+                Text(footer)
             }
 
+            Section {
+                HelpRow("Ce mois-ci", help: Usage.explanation) {
+                    UsageSummary(usage: ledger.thisMonth)
+                }
+                LabeledContent("Mois dernier") {
+                    UsageSummary(usage: ledger.lastMonth)
+                }
+                LabeledContent {
+                    UsageSummary(usage: ledger.sinceReset)
+                } label: {
+                    HStack(spacing: 5) {
+                        Text("Depuis le \(ledger.since.formatted(.dateTime.day().month(.wide).locale(Locale(identifier: "fr_FR"))))")
+                        Button {
+                            ledger.reset()
+                        } label: {
+                            Image(systemName: "arrow.counterclockwise")
+                                .font(.caption)
+                        }
+                        .buttonStyle(.borderless)
+                        .helpBubble("Repartir de zéro à partir d'aujourd'hui")
+                    }
+                }
+            } header: {
+                Text("Consommation")
+            }
         }
         .formStyle(.grouped)
         .fixedSize(horizontal: false, vertical: true)
         .helpTagOverlay()
         .onAppear { status.load() }
+    }
+
+    /// Said plainly when a key the choice relies on is missing, since the choice then
+    /// does not do what it says.
+    private var footer: String {
+        let missing = Engine.allCases.filter { !status.present.contains($0.account) }
+        if missing.count == Engine.allCases.count {
+            return "Sans clé, le moteur Apple hors ligne prend le relais."
+        }
+        if settings.engineChoice == .race, let absent = missing.first {
+            return "La course demande les deux clés : sans clé \(absent.label), l'autre moteur répond seul."
+        }
+        if settings.engineChoice != .race, missing.contains(settings.engineChoice.primary) {
+            return "Sans clé \(settings.engineChoice.label), l'autre moteur répond seul."
+        }
+        return "Sans clé, le moteur Apple hors ligne prend le relais."
+    }
+}
+
+/// "12 dictées · 0,05 $", the minutes and each engine's share on hover.
+private struct UsageSummary: View {
+    let usage: Usage
+
+    var body: some View {
+        Text(usage.summary)
+            .foregroundStyle(.secondary)
+            .monospacedDigit()
+            .helpBubble(usage.detail)
     }
 }
 
@@ -643,6 +719,17 @@ private struct KeyField: View {
                     scheduleCommit(typed)
                 }
                 indicator
+                if isPresent {
+                    Button {
+                        pending?.cancel()
+                        value = ""
+                        status.remove(account)
+                    } label: {
+                        Image(systemName: "minus.circle")
+                    }
+                    .buttonStyle(.borderless)
+                    .helpBubble("Supprimer la clé \(label)")
+                }
             }
         } label: {
             HStack(spacing: 5) {
