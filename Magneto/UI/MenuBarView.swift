@@ -30,6 +30,7 @@ struct MenuBarView: View {
             }
         }
         .frame(width: 380)
+        .background(FocusSink())
         // Closing the popover only hides it, so the tab has to be reset by hand.
         .onAppear { tab = .general }
     }
@@ -225,6 +226,55 @@ private struct KeyRequiredNotice: View {
             onOpenKeys()
             return .handled
         })
+    }
+}
+
+/// Takes the popover's focus each time it opens, so the shortcut recorder, its first
+/// editable control, is only focused by a click. Given the window's initial focus, it
+/// started recording on open and the next key typed replaced the shortcut. Its own
+/// guard, `canBecomeKeyView` off for one turn, loses the race against SwiftUI.
+private struct FocusSink: NSViewRepresentable {
+    func makeNSView(context: Context) -> Sink { Sink() }
+    func updateNSView(_ nsView: Sink, context: Context) {}
+
+    final class Sink: NSView {
+        private var observer: NSObjectProtocol?
+
+        override var acceptsFirstResponder: Bool { true }
+
+        override func viewDidMoveToWindow() {
+            observer.map(NotificationCenter.default.removeObserver)
+            observer = nil
+            guard let window else { return }
+            window.initialFirstResponder = self
+            claim()
+            observer = NotificationCenter.default.addObserver(
+                forName: NSWindow.didBecomeKeyNotification, object: window, queue: .main
+            ) { [weak self] _ in
+                MainActor.assumeIsolated { self?.claim() }
+            }
+        }
+
+        /// Run now and again on the next turn, after AppKit and SwiftUI have placed their
+        /// own initial focus. A field the person is typing in is left alone, and so is a
+        /// click inside the popover: it makes the window key too, and taking the focus
+        /// back then would end the recording that very click just started.
+        private func claim() {
+            if let event = NSApp.currentEvent, event.window === window,
+               [.leftMouseDown, .rightMouseDown, .leftMouseUp, .rightMouseUp].contains(event.type) {
+                return
+            }
+            take()
+            DispatchQueue.main.async { [weak self] in self?.take() }
+        }
+
+        private func take() {
+            guard let window else { return }
+            let responder = window.firstResponder
+            let editing: AnyObject? = (responder as? NSTextView)?.delegate ?? responder
+            guard responder == nil || responder === window || editing is KeyboardShortcuts.RecorderCocoa else { return }
+            window.makeFirstResponder(self)
+        }
     }
 }
 
