@@ -4,6 +4,10 @@ Ce que voit la fenêtre de mise à jour de Magneto : chaque section est publiée
 quelle avec la version de même numéro. Des phrases pour qui met à jour son app, au
 vouvoiement, sans jargon de développeur.
 
+## 0.4.3
+
+- Ouvrir Magneto ne sélectionne plus le champ du raccourci : une touche tapée juste après ne peut plus remplacer votre raccourci de dictée par erreur.
+
 ## 0.4.2
 
 - Magneto a désormais sa propre icône, dans le dossier Applications, le Finder et Spotlight.
