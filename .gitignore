@@ -3,4 +3,5 @@ build/
 *-Info.plist
 .DS_Store
 legacy/
-.claude/
+.claude/*
+!.claude/skills/
