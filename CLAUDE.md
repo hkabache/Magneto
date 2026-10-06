@@ -13,10 +13,11 @@ Pipeline: global hotkey toggle → AVAudioRecorder (wav 16kHz mono) → transcri
 ```bash
 xcodegen generate                  # regenerate Magneto.xcodeproj from project.yml (gitignored)
 xcodebuild -project Magneto.xcodeproj -scheme Magneto -configuration Debug \
-  -derivedDataPath ~/Library/Developer/Xcode/DerivedData/Magneto build
+  -derivedDataPath ~/Library/Developer/Xcode/DerivedData/Magneto -quiet build
 ./scripts/dev.sh                   # Debug build + launch
 ./scripts/install.sh               # Release build + install to /Applications + launch
-xcodebuild test -project Magneto.xcodeproj -scheme Magneto -destination 'platform=macOS'
+xcodebuild test -project Magneto.xcodeproj -scheme Magneto -destination 'platform=macOS' \
+  -derivedDataPath ~/Library/Developer/Xcode/DerivedData/Magneto -quiet
 xcodebuild -project Magneto.xcodeproj -scheme MagnetoIOS -destination 'id=<UDID>' \
   -derivedDataPath ~/Library/Developer/Xcode/DerivedData/Magneto -allowProvisioningUpdates build
 xcrun devicectl device install app --device <UDID> \
@@ -26,8 +27,8 @@ xcrun devicectl device install app --device <UDID> \
 The iPhone build needs the phone plugged in and unlocked, and `-allowProvisioningUpdates`
 fails on every freshly created profile with "Build input file cannot be found"; the second run passes.
 
-Tests use Swift Testing: xcodebuild's "Executed 0 tests" line is the XCTest counter, the real
-count is the "Test run with N tests" line.
+Tests use Swift Testing: their count is the status line's, read from the run's result bundle.
+xcodebuild's "Executed 0 tests" line is the XCTest counter, not theirs.
 
 On a new Mac, beyond Xcode and `brew install xcodegen`: `sudo xcodebuild -runFirstLaunch` before
 the first build, an Apple Account in Xcode's settings for the iPhone profiles, and the Developer ID
@@ -35,10 +36,7 @@ identity imported as a .p12 with its private key. That identity only turns valid
 intermediate is in the login keychain, which a fresh Xcode does not install:
 `https://www.apple.com/certificateauthority/DeveloperIDG2CA.cer`.
 
-Never build with `-derivedDataPath build` (inside the repo): Spotlight indexes the
-resulting Debug and Release `Magneto.app` copies as real applications, so searching
-"Magneto" in Finder returns three icons instead of one. Always target
-`~/Library/Developer/Xcode/DerivedData/Magneto`, which the scripts also mark with
+Builds go to `~/Library/Developer/Xcode/DerivedData/Magneto`, which the scripts mark with
 `.metadata_never_index`.
 
 Always verify compilation with xcodebuild before declaring a task done. Fix new warnings immediately.
@@ -51,6 +49,18 @@ version in its name, `Magneto.dmg`, so the README's download button points at a 
 Notarization needs every agreement of the Apple developer account in effect: an expired one fails the
 "Notariser et agrafer" step with HTTP 403 "A required agreement is missing or has expired", and only the
 user can sign it, on developer.apple.com.
+
+`docs/RECETTE.md` is the manual regression checklist: what to run for each occasion, and how to dictate
+without a voice. It is kept true and it is run:
+- Every change updates it in the same commit: a new feature gets its case, a changed behaviour gets its
+  case rewritten, a removed one loses it, and a fixed bug becomes a case so it cannot come back.
+- Every change, once installed, runs the cases of the area it touches, along with the Socle (the quick
+  pass), before being reported done. Name the cases run and their result; a failed case is fixed first.
+- Before every `v*` tag, and after every macOS or iOS update, the whole checklist runs.
+- Every run is added to the table at the bottom of the file.
+- Any user-visible behaviour met without a case, during a run or while working nearby, gets one on the
+  spot, unasked, and the report says so. Keep it lean: one case per behaviour someone would notice
+  broken, extend an existing case before adding one, and leave to the unit tests what they already cover.
 
 The DMG's window (background, arrow, icon positions) comes from `scripts/dmg/`: `background.swift` draws the
 picture, `settings.py` places the icons for dmgbuild, and the two share coordinates. To preview it, install
@@ -87,6 +97,7 @@ runtime `.accessory` was tried and changed nothing: the Release build keeps the 
 ```
 project.yml                        XcodeGen spec (source of truth for build settings)
 CHANGELOG.md                       release notes, one section per version, shown by Sparkle
+.claude/skills/Magneto/            Claude Code plugin: guardrails and status line (see Claude Code plugin)
 Shared/                            compiled into every target, no AppKit or UIKit inside
   Transcription/                   TranscriptionClient protocol + chain and race + 3 clients
   PostProcessing/QuotePass.swift   straightens quotation marks, and nothing else
@@ -119,7 +130,6 @@ for Debug would break the signature TCC pins its grants to.
 - The system journal never carries the dictated text, and is read with the `log show` command the README
   prints. `DictationJournal` is the only place that text lands, in clear and with the audio, and only while
   its setting is on. It is the instrument every measured decision in this file came from, so keep it usable.
-- No `unwrap`-style force operations: no `try!`, no `!` force-unwrap in production paths.
 - Settings live in `AppSettings` (@Published + UserDefaults persistence). New settings need a default in `init`.
 - Errors surface as `MagnetoError` with French `errorDescription`.
 - There is no LLM cleanup pass, and adding one back needs evidence. The one that existed changed 10 words
@@ -140,7 +150,6 @@ for Debug would break the signature TCC pins its grants to.
   falls back to the commit subjects, `(ios)` and the bump dropped, which reads as a list of titles: the
   0.4.0 window showed one lowercase fragment, and that is what the section exists to avoid.
 - A version adding a feature bumps the minor number (0.4.0), a fix the patch (0.4.1).
-- Never commit or push without an explicit request from the user.
 - Capture never goes through `AVAudioEngine`: reading its `inputNode` was measured at 3146 ms on AirPods
   against 246 ms for `AVCaptureSession`, because macOS publishes a Bluetooth headset as a microphone
   device and a separate output device, and the engine aggregates the two before handing over a node.
@@ -150,6 +159,34 @@ for Debug would break the signature TCC pins its grants to.
   Swift rename disables the feature in silence; `UpdaterTests` pins the four selectors. The README states
   which hosts are contacted and when, so anything that widens that has to be reflected there in the same
   change.
+
+## Claude Code plugin
+
+`.claude/skills/Magneto/` is a Claude Code plugin, named after the app so that its status line and notices carry
+that name. It loads at the start of a session opened in this repository.
+
+Guardrails (`hooks/guardrails.ts`, `rules.ts`) enforce some rules of this file when a tool is called, instead of
+trusting them to be remembered.
+- Refused: an `xcodebuild` whose `-derivedDataPath` is relative (inside the repo); a `git commit` or `git push`
+  when the latest user message does not ask for one; a `git tag v*` or its push while `project.yml`'s
+  `MARKETING_VERSION`, the `## <version>` section of `CHANGELOG.md` or a run of that version in the
+  « Passages » table of `docs/RECETTE.md` is missing.
+- Reported, not refused: an edit adding `try!`, a force-unwrap or `AVAudioEngine` to a Swift file outside the tests.
+- They read only what a command runs (`shell.ts`): quoted text and heredoc bodies are data. A refusal that is
+  wrong is a bug in the rule: say so, and fix the rule with a test for that command. Never route around it.
+
+The status line (`hooks/build-status.ts`, `status.ts`) reads `Build ✓ · Tests ✓ (N) · Installé ✓ · Signature ✓`.
+- The build comes from the output of the xcodebuild, `install.sh` and `dev.sh` calls Claude runs, the tests from
+  the result bundle a run writes under its `-derivedDataPath`, so a test command names one; both are kept per
+  repository across sessions. Builds run with `-quiet`, whose output is whole, so the warnings are counted;
+  after a `| tail` the count is unknown, and an unknown item is left out rather than shown as zero.
+- Installé compares the sources of the Mac app with the binary in /Applications, Signature reads its designated
+  requirement: a `cdhash` in it shows ✗ and a notice.
+
+Check the plugin after every change: `tsc -p .claude/skills/Magneto`, then `claude plugin validate` and
+`claude plugin test` on the same folder. `tsc` needs the types the engine writes into `.claude-plugin/types/`
+when it loads the plugin (gitignored). Mystique's `.claude/skills/Mystique/` is the same plugin under its own
+name: a change to a shared rule goes to both, a rule specific to Magneto stays here.
 
 ## iPhone
 
