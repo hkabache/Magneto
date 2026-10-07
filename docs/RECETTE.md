@@ -8,13 +8,12 @@ ce qu'ils ne voient pas : l'écran, le micro, le collage dans une autre app, le 
 
 | Occasion | Périmètre |
 |---|---|
-| Avant chaque tag `v*` | Toute la recette Mac, et la partie iPhone si la version touche `Shared/` |
-| Après une mise à jour de macOS | Toute la recette Mac |
-| Après une mise à jour d'iOS | Toute la partie iPhone |
-| Après une mise à jour de KeyboardShortcuts ou Sparkle | Les cas marqués **Socle** plus ceux de la dépendance |
-| Après chaque modification, une fois installée | Les cas **Socle** plus ceux de la zone touchée |
+| Après chaque modification, une fois installée | Les seuls cas que les fichiers modifiés peuvent affecter |
+| Après une mise à jour de KeyboardShortcuts ou Sparkle | Les cas de la dépendance |
+| Sur votre demande, ou quand Claude juge les changements nombreux et vous le propose | Toute la recette (avant un tag `v*`, après une mise à jour de macOS ou d'iOS, Claude le propose et vous décidez) |
 
-Les cas **Socle** forment le passage rapide, une dizaine de minutes : s'ils échouent, inutile d'aller plus loin.
+Les cas **Socle** forment le passage rapide, une dizaine de minutes : le point de départ d'un passage complet,
+pas un passage obligé après chaque modification.
 
 ## Comment la passer
 
@@ -54,8 +53,8 @@ corrigé devient un cas pour ne pas revenir.
 | P-02 | ✓ | Cliquer le champ Raccourci, taper ⌥Espace | Le champ s'encadre en gardant le raccourci affiché (« Saisir un raccourci » seulement s'il est vide), puis affiche ⌥Espace sans cadre ; aucune dictée ne démarre |
 | P-03 | **Vous** | Cliquer le champ, taper « a » sans modificateur, puis Échap | Bip, raccourci inchangé ; Échap quitte le champ sans rien changer (la touche Échap simulée par Claude n'y arrive pas, la vraie oui) |
 | P-04 | | Passer sur Vocabulaire puis Clés API, fermer, rouvrir | Chaque onglet s'affiche sans barre de défilement ; à la réouverture, retour sur Général |
-| P-05 | | Survoler chaque ⓘ | La bulle d'aide apparaît tout de suite |
-| P-06 | | Changer « Fenêtre d'enregistrement » (En haut, En bas, Masquée) puis dicter | La pastille suit le réglage, aucune en Masquée |
+| P-05 | | Survoler chaque ⓘ, le lien du nom de chaque clé (Clés API) et le bouton « Copier » de l'en-tête | La bulle d'aide apparaît tout de suite, une seule fois, jamais l'infobulle système (régression de la 0.4.3 : le lien et « Copier » n'en montraient aucune) |
+| P-06 | | Changer « Fenêtre d'enregistrement » (En haut, En bas, Masquée) puis dicter, en apparence claire puis sombre | La pastille suit le réglage, aucune en Masquée ; son contour fin reste visible dans les deux apparences |
 | P-07 | | Basculer « Lancer au démarrage » | Magneto apparaît puis disparaît dans Réglages > Général > Ouverture |
 | P-08 | | Basculer « Caps Lock sans délai » | Activé, un appui bref sur Caps Lock l'allume ; désactivé, il faut le délai habituel |
 
@@ -65,7 +64,7 @@ corrigé devient un cas pour ne pas revenir.
 |---|---|---|---|
 | D-01 | ✓ | Curseur dans TextEdit, raccourci, phrase, raccourci | Pastille rouge pendant l'enregistrement, sablier, puis le texte est collé au curseur |
 | D-02 | ✓ | Après D-01, vérifier le presse-papiers | Il contient ce qu'il contenait avant la dictée, pas le texte dicté |
-| D-03 | ✓ | Popover, bouton « Copier » | La dernière dictée est copiée, le bouton affiche « Copié » |
+| D-03 | ✓ | Popover, bouton « Copier » | La dernière dictée est copiée, le bouton affiche « Copié » pendant 1,5 s |
 | D-04 | | Lancer une dictée, Échap | Enregistrement annulé, rien n'est collé, retour à « Prêt » |
 | D-05 | | Lancer une dictée depuis le bouton « Dicter » du popover | Même résultat que D-01 |
 | D-06 | | Dicter « il a dit « bonjour » » avec Guillemets droits activé, puis désactivé | Activé : `"bonjour"` ; désactivé : les guillemets du moteur restent |
@@ -90,7 +89,7 @@ corrigé devient un cas pour ne pas revenir.
 
 | ID | Socle | Étapes | Résultat attendu |
 |---|---|---|---|
-| J-01 | | Journal des dictées activé, dicter | `~/Library/Application Support/Magneto/` contient l'audio et le texte du jour |
+| J-01 | | Journal des dictées activé, dicter, puis « Ouvrir le dossier du journal » | `~/Library/Application Support/Magneto/` contient l'audio et le texte du jour, et le lien l'ouvre dans le Finder ; journal décoché, le lien disparaît |
 | J-02 | | Journal désactivé, dicter | Rien de nouveau dans ce dossier |
 | U-01 | | « Vérifier les mises à jour » | Une fenêtre au premier plan répond : « Votre logiciel est à jour ! », ou propose la nouvelle version. Seule la vérification automatique reste silencieuse |
 | U-02 | **Vous** | Après la publication, depuis la version précédente installée | La mise à jour s'installe et l'app relancée affiche la nouvelle version |
@@ -111,3 +110,4 @@ corrigé devient un cas pour ne pas revenir.
 | Date | Version | macOS / iOS | Périmètre | Résultat | Notes |
 |---|---|---|---|---|---|
 | 2026-10-06 | 0.4.3 (avant tag) | macOS 27.2 | Toute la recette Mac, avant le tag v0.4.3 | Tout bon, quatre cas réécrits | Claude : M-01, M-02, P-01, P-02, P-04 à P-07, D-01 à D-05, D-07 à D-09, E-01 à E-03, E-05, J-01, J-02, U-01. Vous : P-03 (Échap à la vraie touche). P-02 et U-01 réécrits (attendus périmés, pas des régressions), P-03 passé en **Vous**, D-12 ajouté. Restent à vous : M-04, P-08, D-06, D-10, D-11, E-04 ; après publication, M-03 et U-02 |
+| 2026-10-07 | 0.4.3 + alignement Mystique (non publiée) | macOS 27.2 | Cas touchés : bulles d'aide, journal, pastille, Copier | Bon, un cas à vous | Claude : M-01, M-02, P-05 (lien des clés et « Copier » montrent leur bulle, une seule fois), J-01 (lien du dossier), D-01, D-02, E-01. P-05, P-06, D-03 et J-01 réécrits. Reste à vous : P-06, contour fin de la pastille en clair et en sombre (capture manquée, apparence non modifiable par Claude) ; D-03, durée de « Copié » non chronométrée |

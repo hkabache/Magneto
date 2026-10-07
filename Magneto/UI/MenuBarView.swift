@@ -71,6 +71,9 @@ struct MenuBarView: View {
                 .padding(.horizontal, 16)
                 .padding(.vertical, 10)
         }
+        // One layer for the whole popover rather than one per tab: the header's Copier
+        // carries a bubble too, and a layer per tab would draw a tab's bubble twice.
+        .helpTagOverlay()
     }
 
     private var header: some View {
@@ -99,7 +102,7 @@ struct MenuBarView: View {
             }
             .buttonStyle(.borderedProminent)
             .disabled(app.history.isEmpty)
-            .help("Copier la dernière transcription")
+            .helpBubble("Copier la dernière transcription")
         }
     }
 
@@ -471,6 +474,15 @@ private struct GeneralTab: View {
                     Toggle("", isOn: $settings.dictationJournal)
                         .labelsHidden()
                 }
+                if settings.dictationJournal {
+                    Button("Ouvrir le dossier du journal") {
+                        if let folder = DictationJournal.directory() {
+                            try? FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+                            NSWorkspace.shared.open(folder)
+                        }
+                    }
+                    .buttonStyle(.link)
+                }
             } header: {
                 Text("Diagnostic")
             }
@@ -489,7 +501,6 @@ private struct GeneralTab: View {
         // A grouped form is scrollable, so it takes every point it is offered
         // instead of stopping at its rows. This pins it to their height.
         .fixedSize(horizontal: false, vertical: true)
-        .helpTagOverlay()
         .onAppear {
             launchAtLogin = SMAppService.mainApp.status == .enabled
         }
@@ -695,7 +706,6 @@ private struct KeysTab: View {
         }
         .formStyle(.grouped)
         .fixedSize(horizontal: false, vertical: true)
-        .helpTagOverlay()
         .onAppear { status.load() }
     }
 
@@ -793,7 +803,7 @@ private struct KeyField: View {
                             Text(label)
                         }
                     }
-                    .help("Ouvrir la page des clés \(label)")
+                    .helpBubble("Ouvrir la page des clés \(label)")
                 } else {
                     Text(label)
                 }

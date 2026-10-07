@@ -86,7 +86,7 @@ enum DictationJournal {
     /// Application Support on the Mac, where the README sends people. Documents on the
     /// iPhone: it is the only folder the Files app shows, and a journal nobody can open
     /// measures nothing.
-    private static func directory() -> URL? {
+    static func directory() -> URL? {
         #if os(iOS)
         return FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first
         #else

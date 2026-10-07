@@ -113,7 +113,7 @@ struct OverlayView: View {
         .padding(.horizontal, 14)
         .padding(.vertical, 8)
         .background(pillBackground, in: Capsule())
-        .overlay(Capsule().strokeBorder(Color(nsColor: .separatorColor)))
+        .overlay(Capsule().strokeBorder(Color(nsColor: .separatorColor), lineWidth: 0.5))
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 }

@@ -54,9 +54,11 @@ user can sign it, on developer.apple.com.
 without a voice. It is kept true and it is run:
 - Every change updates it in the same commit: a new feature gets its case, a changed behaviour gets its
   case rewritten, a removed one loses it, and a fixed bug becomes a case so it cannot come back.
-- Every change, once installed, runs the cases of the area it touches, along with the Socle (the quick
-  pass), before being reported done. Name the cases run and their result; a failed case is fixed first.
-- Before every `v*` tag, and after every macOS or iOS update, the whole checklist runs.
+- Every change, once installed, runs only the cases its modified files can affect, before being reported
+  done: not the Socle, not the neighbouring areas. Name the cases run and their result; a failed case is
+  fixed first.
+- The whole checklist runs only when the user asks for it, or when the changes are broad and Claude says so
+  and asks first. Before a `v*` tag and after a macOS or iOS update, Claude proposes it; the user decides.
 - Every run is added to the table at the bottom of the file.
 - Any user-visible behaviour met without a case, during a run or while working nearby, gets one on the
   spot, unasked, and the report says so. Keep it lean: one case per behaviour someone would notice
