@@ -4,6 +4,10 @@ Ce que voit la fenêtre de mise à jour de Magneto : chaque section est publiée
 quelle avec la version de même numéro. Des phrases pour qui met à jour son app, au
 vouvoiement, sans jargon de développeur.
 
+## 0.5.1
+
+- Vos dictées partent plus légères vers les moteurs en ligne, sans rien perdre du son : le texte d'ElevenLabs arrive plus vite, surtout sur les dictées longues, et il est donc gardé plus souvent.
+
 ## 0.5.0
 
 - Mistral remplace Microsoft comme second moteur. Son modèle Voxtral rend un texte plus propre que celui de Microsoft, avec moins d'hésitations et des noms propres mieux orthographiés, et répond en moins d'une seconde sur la plupart des dictées. Collez une clé Mistral dans l'onglet Clés API : l'ancienne clé Microsoft n'est plus utilisée.
