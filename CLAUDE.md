@@ -6,7 +6,7 @@ This file provides guidance to Claude Code when working with this repository.
 
 Magneto is a minimal macOS menu bar dictation app, native Swift/SwiftUI, two SPM dependencies on the Mac (KeyboardShortcuts, Sparkle), none on the iPhone. Distributed outside the App Store: Developer ID signed, notarized, published as a DMG by the release workflow on a `v*` tag. An iPhone target shares the transcription chain and is installed from Xcode, never released.
 
-Pipeline: global hotkey toggle → AVAudioRecorder (wav 16kHz mono) → transcription chain (Scribe v2 raced against Voxtral Small Transcribe 3: Scribe if back within 1.5 s, Voxtral at once past 45 s of audio → Apple SpeechAnalyzer) → quote straightening → paste at cursor via synthesized Cmd+V. On the iPhone the toggle is an App Intent run by a shortcut, the pill is a Live Activity, and the shortcut copies the text the intent returns.
+Pipeline: global hotkey toggle → AVAudioRecorder (wav 16kHz mono, sent as FLAC) → transcription chain (Scribe v2 raced against Voxtral Small Transcribe 3: Scribe if back within 1.5 s, Voxtral at once past 45 s of audio → Apple SpeechAnalyzer) → quote straightening → paste at cursor via synthesized Cmd+V. On the iPhone the toggle is an App Intent run by a shortcut, the pill is a Live Activity, and the shortcut copies the text the intent returns.
 
 ## Build
 

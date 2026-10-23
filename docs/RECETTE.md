@@ -80,7 +80,7 @@ corrigé devient un cas pour ne pas revenir.
 | ID | Socle | Étapes | Résultat attendu |
 |---|---|---|---|
 | E-01 | ✓ | Onglet Clés API, puis coller une clé Mistral fausse et remettre la bonne | Les deux clés affichent un voyant vert ; la fausse affiche « Clé refusée par Mistral » |
-| E-02 | | Moteur « Course », dicter | Texte reçu ; le journal système (`log show`, voir README) dit quel moteur a gagné |
+| E-02 | | Moteur « Course », dicter | Texte reçu ; le journal système (`log show`, voir README) dit quel moteur a gagné, et qu'un FLAC d'environ un tiers du WAV est parti (« FLAC : … Ko en … ms ») |
 | E-03 | | Moteur Mistral seul, puis ElevenLabs seul, dicter | Texte reçu de chacun |
 | E-04 | | Couper le Wi-Fi, dicter | Le moteur Apple prend le relais, le texte arrive quand même |
 | E-05 | | Consommation « Ce mois-ci » après une dictée | Le compteur a augmenté |

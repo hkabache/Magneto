@@ -222,6 +222,15 @@ enum TranscriptionService {
         // Read before the first suspension, like the audio itself: the file may be gone
         // once a text is chosen.
         let seconds = AudioFile.duration(of: audioURL)
+        // The cloud engines get the FLAC, the local one the WAV it reads without decoding.
+        // Removed on return like the WAV: a race's loser has read it by then.
+        let upload = available.isEmpty ? nil : AudioFile.compressed(audioURL)
+        defer {
+            if let upload {
+                try? FileManager.default.removeItem(at: upload)
+            }
+        }
+        let sent = upload ?? audioURL
         var failures: [String] = []
         var clients: [(client: any TranscriptionClient, billed: Engine?)] = []
 
@@ -229,7 +238,7 @@ enum TranscriptionService {
             await UsageLedger.shared.recordDictation(seconds: seconds)
         }
         if choice == .race, available == Set(Engine.allCases) {
-            let outcome = await race(audioURL: audioURL, seconds: seconds, language: language, vocabulary: vocabulary)
+            let outcome = await race(audioURL: sent, seconds: seconds, language: language, vocabulary: vocabulary)
             failures = outcome.failures
             if let winner = outcome.winner {
                 return .success((winner.text, winner.engine, failures))
@@ -240,7 +249,7 @@ enum TranscriptionService {
         clients.append((AppleSpeechClient(), nil))
 
         for (client, billed) in clients {
-            switch await attempt(client, billed: billed, seconds: seconds, audioURL: audioURL, language: language, vocabulary: vocabulary) {
+            switch await attempt(client, billed: billed, seconds: seconds, audioURL: billed == nil ? audioURL : sent, language: language, vocabulary: vocabulary) {
             case .text(let text):
                 return .success((text, client.name, failures))
             case .failed(let failure):

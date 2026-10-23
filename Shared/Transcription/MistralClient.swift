@@ -24,7 +24,7 @@ struct MistralClient: TranscriptionClient {
         for term in Self.contextBias(from: vocabulary) {
             form.addField("context_bias", term)
         }
-        form.addFile("file", filename: "audio.wav", mime: "audio/wav", data: try Data(contentsOf: audioURL))
+        form.addFile("file", filename: "audio.\(audioURL.pathExtension)", mime: AudioFile.mimeType(of: audioURL), data: try Data(contentsOf: audioURL))
 
         guard let url = URL(string: "https://api.mistral.ai/v1/audio/transcriptions") else {
             throw MagnetoError.api(engine: name, message: "URL invalide")
