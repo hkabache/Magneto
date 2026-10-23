@@ -67,7 +67,7 @@ corrigé devient un cas pour ne pas revenir.
 | D-03 | ✓ | Popover, bouton « Copier » | La dernière dictée est copiée, le bouton affiche « Copié » pendant 1,5 s |
 | D-04 | | Lancer une dictée, Échap | Enregistrement annulé, rien n'est collé, retour à « Prêt » |
 | D-05 | | Lancer une dictée depuis le bouton « Dicter » du popover | Même résultat que D-01 |
-| D-06 | | Dicter « il a dit « bonjour » » avec Guillemets droits activé, puis désactivé | Activé : `"bonjour"` ; désactivé : les guillemets du moteur restent |
+| D-06 | | Dicter « il a dit « bonjour » » avec Guillemets droits activé, puis désactivé | Activé : `"bonjour"`, et aucune apostrophe courbe `’` dans le texte ; désactivé : les guillemets du moteur restent |
 | D-07 | | Dicter une phrase avec un mot du vocabulaire (Vocabulaire > Ajouter) | Le mot sort avec l'orthographe enregistrée |
 | D-08 | | Dicter environ une minute | Texte complet, sans coupure au milieu |
 | D-09 | | Dicter dans une autre app (Notes, un champ web) | Collé au curseur pareil |
@@ -79,9 +79,9 @@ corrigé devient un cas pour ne pas revenir.
 
 | ID | Socle | Étapes | Résultat attendu |
 |---|---|---|---|
-| E-01 | ✓ | Onglet Clés API | Les deux clés affichent un voyant vert |
+| E-01 | ✓ | Onglet Clés API, puis coller une clé Mistral fausse et remettre la bonne | Les deux clés affichent un voyant vert ; la fausse affiche « Clé refusée par Mistral » |
 | E-02 | | Moteur « Course », dicter | Texte reçu ; le journal système (`log show`, voir README) dit quel moteur a gagné |
-| E-03 | | Moteur Microsoft seul, puis ElevenLabs seul, dicter | Texte reçu de chacun |
+| E-03 | | Moteur Mistral seul, puis ElevenLabs seul, dicter | Texte reçu de chacun |
 | E-04 | | Couper le Wi-Fi, dicter | Le moteur Apple prend le relais, le texte arrive quand même |
 | E-05 | | Consommation « Ce mois-ci » après une dictée | Le compteur a augmenté |
 
@@ -111,3 +111,4 @@ corrigé devient un cas pour ne pas revenir.
 |---|---|---|---|---|---|
 | 2026-10-06 | 0.4.3 (avant tag) | macOS 27.2 | Toute la recette Mac, avant le tag v0.4.3 | Tout bon, quatre cas réécrits | Claude : M-01, M-02, P-01, P-02, P-04 à P-07, D-01 à D-05, D-07 à D-09, E-01 à E-03, E-05, J-01, J-02, U-01. Vous : P-03 (Échap à la vraie touche). P-02 et U-01 réécrits (attendus périmés, pas des régressions), P-03 passé en **Vous**, D-12 ajouté. Restent à vous : M-04, P-08, D-06, D-10, D-11, E-04 ; après publication, M-03 et U-02 |
 | 2026-10-07 | 0.4.3 + alignement Mystique (non publiée) | macOS 27.2 | Cas touchés : bulles d'aide, journal, pastille, Copier | Bon, un cas à vous | Claude : M-01, M-02, P-05 (lien des clés et « Copier » montrent leur bulle, une seule fois), J-01 (lien du dossier), D-01, D-02, E-01. P-05, P-06, D-03 et J-01 réécrits. Reste à vous : P-06, contour fin de la pastille en clair et en sombre (capture manquée, apparence non modifiable par Claude) ; D-03, durée de « Copié » non chronométrée |
+| 2026-10-23 | 0.5.0 (avant tag, Voxtral Small 3 à la place de MAI) | macOS 27.2 | Cas touchés : clés, moteurs, consommation, bulles des clés | Bon, un mot ajouté au vocabulaire intégré | Claude : E-01 (voyants verts), E-02 (Voxtral 654 ms, Scribe retenu en 1099 ms), E-03, E-05, P-05 (lien et ⓘ de Mistral, aide du Moteur). E-03 a montré « Mistral » entendu « Mystique » par Voxtral et « Mystical » par Scribe : « Mistral » et « Voxtral » rejoignent le vocabulaire intégré, la même phrase revient juste. Restent à vous : la clé fausse d'E-01 (elle écraserait la vraie), D-06 à la voix pour les apostrophes, I-01 et I-02 sur l'iPhone |

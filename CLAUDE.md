@@ -6,7 +6,7 @@ This file provides guidance to Claude Code when working with this repository.
 
 Magneto is a minimal macOS menu bar dictation app, native Swift/SwiftUI, two SPM dependencies on the Mac (KeyboardShortcuts, Sparkle), none on the iPhone. Distributed outside the App Store: Developer ID signed, notarized, published as a DMG by the release workflow on a `v*` tag. An iPhone target shares the transcription chain and is installed from Xcode, never released.
 
-Pipeline: global hotkey toggle → AVAudioRecorder (wav 16kHz mono) → transcription chain (Scribe v2 raced against MAI-Transcribe-2: Scribe if back within 1.5 s, MAI at once past 45 s of audio → Apple SpeechAnalyzer) → quote straightening → paste at cursor via synthesized Cmd+V. On the iPhone the toggle is an App Intent run by a shortcut, the pill is a Live Activity, and the shortcut copies the text the intent returns.
+Pipeline: global hotkey toggle → AVAudioRecorder (wav 16kHz mono) → transcription chain (Scribe v2 raced against Voxtral Small Transcribe 3: Scribe if back within 1.5 s, Voxtral at once past 45 s of audio → Apple SpeechAnalyzer) → quote straightening → paste at cursor via synthesized Cmd+V. On the iPhone the toggle is an App Intent run by a shortcut, the pill is a Live Activity, and the shortcut copies the text the intent returns.
 
 ## Build
 
@@ -102,7 +102,7 @@ CHANGELOG.md                       release notes, one section per version, shown
 .claude/skills/Magneto/            Claude Code plugin: guardrails and status line (see Claude Code plugin)
 Shared/                            compiled into every target, no AppKit or UIKit inside
   Transcription/                   TranscriptionClient protocol + chain and race + 3 clients
-  PostProcessing/QuotePass.swift   straightens quotation marks, and nothing else
+  PostProcessing/QuotePass.swift   straightens quotation marks and apostrophes, and nothing else
   Support/                         AppSettings (two macOS-only settings under #if), Keychain, KeyCheck, KeyStatus, Log, MagnetoError, DictationJournal, AudioFile, UsageLedger
 Magneto/                           macOS app
   MagnetoApp.swift                 @main, MenuBarExtra (.window style)

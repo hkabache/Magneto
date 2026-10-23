@@ -18,7 +18,7 @@ final class KeyStatus: ObservableObject {
     /// but probes nothing, and a green tick claiming validity would then be a guess.
     @Published private(set) var validated: Set<String> = []
 
-    private static let accounts = [Keychain.microsoft, Keychain.elevenLabs]
+    private static let accounts = [Keychain.mistral, Keychain.elevenLabs]
 
     /// Probes anything still without a verdict, so opening the tab is enough to know
     /// where each key stands. A verdict is kept for the whole session, so this costs

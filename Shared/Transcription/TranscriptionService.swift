@@ -64,14 +64,14 @@ enum HTTP {
 
 /// What the user picks: one engine first, or both at once.
 enum EngineChoice: String, CaseIterable, Identifiable {
-    case race, microsoft, elevenLabs
+    case race, mistral, elevenLabs
 
     var id: String { rawValue }
 
     var label: String {
         switch self {
         case .race: return "Course"
-        case .microsoft: return Engine.microsoft.label
+        case .mistral: return Engine.mistral.label
         case .elevenLabs: return Engine.elevenLabs.label
         }
     }
@@ -83,9 +83,9 @@ enum EngineChoice: String, CaseIterable, Identifiable {
             + Double(Race.deadline.components.attoseconds) / 1e18
         let seconds = deadline.formatted(.number.precision(.fractionLength(0...1)).locale(Locale(identifier: "fr_FR")))
         return """
-        Course : les deux moteurs reçoivent la dictée. Le texte d'ElevenLabs est gardé s'il arrive en moins de \(seconds) s, sinon celui de Microsoft. Au-delà de \(Int(Race.longAudio)) s d'audio, Microsoft est pris dès qu'il répond.
+        Course : les deux moteurs reçoivent la dictée. Le texte d'ElevenLabs est gardé s'il arrive en moins de \(seconds) s, sinon celui de Mistral. Au-delà de \(Int(Race.longAudio)) s d'audio, Mistral est pris dès qu'il répond.
 
-        Microsoft ou ElevenLabs : ce moteur est essayé en premier, l'autre prend le relais s'il échoue.
+        Mistral ou ElevenLabs : ce moteur est essayé en premier, l'autre prend le relais s'il échoue.
 
         Le moteur Apple hors ligne passe en dernier.
         """
@@ -95,7 +95,7 @@ enum EngineChoice: String, CaseIterable, Identifiable {
     var primary: Engine {
         switch self {
         case .race, .elevenLabs: return .elevenLabs
-        case .microsoft: return .microsoft
+        case .mistral: return .mistral
         }
     }
 }
@@ -103,7 +103,7 @@ enum EngineChoice: String, CaseIterable, Identifiable {
 /// The cloud engines, one per key. Apple is not among them: it needs no key and always
 /// answers last, so it is never a choice.
 enum Engine: String, CaseIterable, Identifiable {
-    case microsoft, elevenLabs
+    case mistral, elevenLabs
 
     var id: String { rawValue }
 
@@ -111,32 +111,31 @@ enum Engine: String, CaseIterable, Identifiable {
     /// onto two lines.
     var label: String {
         switch self {
-        case .microsoft: return "Microsoft"
+        case .mistral: return "Mistral"
         case .elevenLabs: return "ElevenLabs"
         }
     }
 
     var account: String {
         switch self {
-        case .microsoft: return Keychain.microsoft
+        case .mistral: return Keychain.mistral
         case .elevenLabs: return Keychain.elevenLabs
         }
     }
 
     /// Public prices in dollars per hour of audio, checked in October 2026. Scribe v2 is
     /// 0.22 plus 0.05 for keyterms, always sent since the built-in words never leave the
-    /// list. MAI-Transcribe-2's 0.10 is a launch price announced until December 31, 2026,
-    /// with nothing published for after: to revisit then.
+    /// list. Voxtral Small Transcribe 3 is 0.004 per minute.
     var pricePerHour: Double {
         switch self {
-        case .microsoft: return 0.10
+        case .mistral: return 0.24
         case .elevenLabs: return 0.27
         }
     }
 
     fileprivate var client: any TranscriptionClient {
         switch self {
-        case .microsoft: return MicrosoftClient()
+        case .mistral: return MistralClient()
         case .elevenLabs: return ElevenLabsClient()
         }
     }
@@ -149,9 +148,11 @@ enum Engine: String, CaseIterable, Identifiable {
 }
 
 /// Both engines sent the same audio at once, Scribe preferred for its cleaner text and
-/// MAI-Transcribe-2 kept for when Scribe is slow. Scribe answers a dictation in 1.2 s at
+/// Voxtral Small kept for when Scribe is slow. Scribe answers a dictation in 1.2 s at
 /// the median but took over two seconds once in four, up to 4.5 s, over a week of real
-/// use; MAI answered every one of its dictations within 1.1 s.
+/// use; Voxtral answered 83 dictations replayed from the journal in 0.8 s at the median,
+/// within 1.4 s up to 30 s of audio. It replaced MAI-Transcribe-2, as fast but whose
+/// text kept the hesitations and misheard names Voxtral gets right.
 ///
 /// Fed one event at a time, it says whether to keep waiting. Pure, so the rules are
 /// tested without a network.
@@ -171,13 +172,14 @@ struct Race {
     }
 
     /// 64 % of last week's Scribe dictations came back within it: those keep Scribe's
-    /// text, the rest get MAI's without waiting further.
+    /// text, the rest get Voxtral's without waiting further.
     static let deadline = Duration.milliseconds(1500)
 
-    /// Scribe's time grows with the audio, MAI's barely does. Over a morning of races on
+    /// Scribe's time grows with the audio, Voxtral's much less: 1.8 s at the median
+    /// past a minute, where Scribe nears 3 s. Over a morning of races on
     /// the Mac, Scribe won every dictation of 16 s or less and missed the deadline on
     /// every one from 23 s; on the iPhone the line sat between 34 and 41 s. Past this
-    /// length, waiting out the deadline only delays MAI's text, so there is no deadline.
+    /// length, waiting out the deadline only delays Voxtral's text, so there is no deadline.
     /// Set above both lines on purpose: if Scribe gets faster, the late times it keeps
     /// logging will show it.
     static let longAudio: TimeInterval = 45
@@ -265,7 +267,7 @@ enum TranscriptionService {
         vocabulary: [String]
     ) async -> (winner: (text: String, engine: String)?, failures: [String]) {
         let preferredClient = ElevenLabsClient()
-        let fallbackClient = MicrosoftClient()
+        let fallbackClient = MistralClient()
         let deadline = Race.deadline(forAudio: seconds)
         let stopwatch = Stopwatch()
         let (events, continuation) = AsyncStream.makeStream(of: RaceEvent.self)
@@ -274,7 +276,7 @@ enum TranscriptionService {
             continuation.yield(.preferred(await attempt(preferredClient, billed: .elevenLabs, seconds: seconds, audioURL: audioURL, language: language, vocabulary: vocabulary)))
         }
         let fallback = Task {
-            continuation.yield(.fallback(await attempt(fallbackClient, billed: .microsoft, seconds: seconds, audioURL: audioURL, language: language, vocabulary: vocabulary)))
+            continuation.yield(.fallback(await attempt(fallbackClient, billed: .mistral, seconds: seconds, audioURL: audioURL, language: language, vocabulary: vocabulary)))
         }
         let timer = Task {
             try? await Task.sleep(for: deadline)

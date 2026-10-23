@@ -38,7 +38,7 @@ Une fois par semaine, Magneto regarde s'il existe une version plus récente, et 
 
 **Vos clés, votre audio.** Les clés sont les vôtres et vivent dans le trousseau macOS. L'audio part de votre Mac vers le ou les fournisseurs dont vous avez mis la clé, et nulle part ailleurs : aucun serveur intermédiaire, aucun compte à créer, aucune télémétrie, aucun outil d'analytique.
 
-Adresses contactées : pour dicter, `api.elevenlabs.io` et `<région>.api.cognitive.microsoft.com`, selon les clés renseignées ; coller la clé Microsoft interroge une fois les régions qui servent MAI-Transcribe-2. Apple, une seule fois, si le modèle de dictée local doit être installé. GitHub, une fois par semaine et à chaque « Vérifier les mises à jour ». Le code est public pour que vous puissiez le vérifier plutôt que me croire.
+Adresses contactées : pour dicter, `api.elevenlabs.io` et `api.mistral.ai`, selon les clés renseignées ; coller une clé l'envoie une fois à son fournisseur pour la vérifier. Apple, une seule fois, si le modèle de dictée local doit être installé. GitHub, une fois par semaine et à chaque « Vérifier les mises à jour ». Le code est public pour que vous puissiez le vérifier plutôt que me croire.
 
 C'est la différence de fond avec un service qui mutualise ses propres clés : au lieu d'ignorer ce que devient votre voix, vous contractez directement avec le fournisseur, vous lisez ses conditions, et vous révoquez votre clé quand vous voulez.
 
@@ -49,9 +49,9 @@ C'est la différence de fond avec un service qui mutualise ses propres clés : a
 ```
 Option+Espace → enregistrement micro (Échap pour annuler)
 Option+Espace → transcription :
-  1. Course (par défaut, deux clés) : ElevenLabs Scribe v2 et Microsoft MAI-Transcribe-2
-     reçoivent le même audio. Scribe est gardé s'il répond en 1,5 s, sinon MAI ;
-     au-delà de 45 s d'audio, MAI sans attendre. Un moteur choisi seul : lui, puis l'autre.
+  1. Course (par défaut, deux clés) : ElevenLabs Scribe v2 et Mistral Voxtral Small 3
+     reçoivent le même audio. Scribe est gardé s'il répond en 1,5 s, sinon Voxtral ;
+     au-delà de 45 s d'audio, Voxtral sans attendre. Un moteur choisi seul : lui, puis l'autre.
   2. Apple SpeechAnalyzer (local, hors ligne)
 → guillemets « » remplacés par des " (désactivable, seule modification du texte)
 → collage au curseur (Cmd+V synthétique, presse-papiers restauré)
@@ -78,12 +78,12 @@ Le journal des dictées s'écrit dans Fichiers > Sur mon iPhone > Magneto. Les a
 Tout se passe dans le popover de la barre de menus :
 
 - **Général** : raccourci, position de la fenêtre d'enregistrement, délai Caps Lock, lancement au démarrage, guillemets droits, journal des dictées
-- **Vocabulaire** : termes envoyés aux moteurs en ligne comme référence orthographique, plus un vocabulaire intégré et invisible (Magneto, ElevenLabs)
-- **Clés API** : le moteur (Course, Microsoft ou ElevenLabs) et les deux clés, ElevenLabs et Microsoft (Azure Speech Services, offre S0, région North Europe ou une autre servant MAI-Transcribe-2). Elles vivent dans le trousseau macOS, service `com.hkabache.magneto`, et survivent à une réinstallation. Dessous, la consommation : dictées et dollars du mois, du mois dernier et depuis une date qu'on remet à zéro, calculés sur la durée de l'audio au tarif public. Que des chiffres, aucun texte
+- **Vocabulaire** : termes envoyés aux moteurs en ligne comme référence orthographique, plus un vocabulaire intégré et invisible (Magneto, ElevenLabs, Mistral, Voxtral)
+- **Clés API** : le moteur (Course, Mistral ou ElevenLabs) et les deux clés, ElevenLabs et Mistral (console.mistral.ai). Elles vivent dans le trousseau macOS, service `com.hkabache.magneto`, et survivent à une réinstallation. Dessous, la consommation : dictées et dollars du mois, du mois dernier et depuis une date qu'on remet à zéro, calculés sur la durée de l'audio au tarif public. Que des chiffres, aucun texte
 
-Scribe rend le texte le plus propre, sans hésitations, mais ralentit avec la longueur : près de 3 s au-delà de 45 s d'audio. MAI répond une minute d'audio en une seconde environ et garde davantage les « du coup » et « en fait ». La course coûte deux transcriptions, quelques centimes. Sans clé, Magneto utilise le moteur Apple hors ligne.
+Scribe rend le texte le plus propre, sans hésitations, mais ralentit avec la longueur : près de 3 s au-delà de 45 s d'audio. Voxtral répond en moins d'une seconde jusqu'à 30 s d'audio, en moins de deux au-delà d'une minute, corrige mieux les noms propres que Scribe mais garde quelques « du coup » et hésitations. La course coûte deux transcriptions, quelques centimes. Sans clé, Magneto utilise le moteur Apple hors ligne.
 
-**Guillemets droits** est la seule modification que Magneto apporte au texte du moteur : les `« »` et les guillemets courbes deviennent des `"` droits. Décoché, le texte est collé exactement tel que le moteur l'a rendu.
+**Guillemets droits** est la seule modification que Magneto apporte au texte du moteur : les `« »` et les guillemets courbes deviennent des `"` droits, les apostrophes courbes `’` des `'`. Décoché, le texte est collé exactement tel que le moteur l'a rendu.
 
 **Caps Lock sans délai** supprime le délai d'activation d'environ 100 ms que macOS impose sur la touche, et qui fait qu'un appui rapide ne l'active pas. Le réglage passe par `hidutil` et vaut pour tout le système, pas seulement pour Magneto. L'override ne survit pas à une déconnexion, donc Magneto le repose à chaque lancement tant que l'option est active. `hidutil` sait écrire une propriété mais pas l'effacer : désactiver l'option réécrit le délai d'origine au lieu de retirer l'override.
 

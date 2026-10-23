@@ -135,7 +135,7 @@ struct SettingsView: View {
                     Text(choice.label).tag(choice)
                 }
             }
-            KeyRow(label: "Microsoft", account: Keychain.microsoft, status: keyStatus)
+            KeyRow(label: "Mistral", account: Keychain.mistral, status: keyStatus)
             KeyRow(label: "ElevenLabs", account: Keychain.elevenLabs, status: keyStatus)
         } header: {
             Text("Clés API")
@@ -204,7 +204,7 @@ struct SettingsView: View {
         } header: {
             Text("Texte")
         } footer: {
-            Text("Remplace « » et les guillemets courbes par des \". C'est la seule modification apportée au texte du moteur.")
+            Text("Remplace « » et les guillemets courbes par des \", les apostrophes courbes par des '. C'est la seule modification apportée au texte du moteur.")
         }
     }
 

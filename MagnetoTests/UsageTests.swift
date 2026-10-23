@@ -15,10 +15,10 @@ struct UsageTests {
     func totals() {
         var usage = Usage(dictations: 2, seconds: 120)
         usage.costs[Engine.elevenLabs.rawValue] = 0.03
-        usage.costs[Engine.microsoft.rawValue] = 0.02
+        usage.costs[Engine.mistral.rawValue] = 0.02
         #expect(usage.cost == 0.05)
         #expect(usage.summary == "2 dictées · 0,05 $")
-        #expect(usage.detail == "2 min d'audio · Microsoft 0,02 $ · ElevenLabs 0,03 $")
+        #expect(usage.detail == "2 min d'audio · Mistral 0,02 $ · ElevenLabs 0,03 $")
     }
 
     @Test("An engine that cost nothing is left out of the detail")

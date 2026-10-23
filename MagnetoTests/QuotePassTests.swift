@@ -16,6 +16,12 @@ struct QuotePassTests {
         #expect(clean("« espace fine\u{202F}»") == "\"espace fine\"")
     }
 
+    @Test("curly apostrophes come back as the one on the keyboard")
+    func apostrophesStraightened() {
+        #expect(clean("j\u{2019}ai vérifié, et j'ai") == "j'ai vérifié, et j'ai")
+        #expect(clean("\u{2018}ok\u{2019}") == "'ok'")
+    }
+
     @Test("the casing the engine chose is left alone")
     func casingIsNotTouched() {
         // A few words dictated to patch the middle of an existing sentence must stay

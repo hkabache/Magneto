@@ -54,9 +54,10 @@ final class AppSettings: ObservableObject {
 
     /// Names that are the same for every user, and that dictating about Magneto
     /// itself keeps getting wrong. Kept out of the Vocabulaire tab: nobody should
-    /// have to type them, and nobody has a reason to remove them.
+    /// have to type them, and nobody has a reason to remove them. Without "Mistral", both
+    /// engines heard the provider as "Mystique", a word of the user's list, or "Mystical".
     private static let builtInWords = [
-        "Magneto", "ElevenLabs",
+        "Magneto", "ElevenLabs", "Mistral", "Voxtral",
     ]
 
     /// User terms first: the keyterms list is capped, and someone's own words matter
@@ -74,7 +75,7 @@ final class AppSettings: ObservableObject {
         straightQuotes = defaults.object(forKey: "straightQuotes") as? Bool ?? true
         dictationJournal = defaults.bool(forKey: "dictationJournal")
         customWords = defaults.stringArray(forKey: "customWords") ?? []
-        // Scribe's text is the cleaner, MAI-Transcribe-2's the faster by far: the race
+        // Scribe's text is the cleaner, Voxtral's the faster: the race
         // keeps the first whenever it comes back in time, on both devices.
         engineChoice = EngineChoice(rawValue: defaults.string(forKey: "engineChoice") ?? "") ?? .race
 

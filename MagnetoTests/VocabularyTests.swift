@@ -19,7 +19,13 @@ struct VocabularyTests {
         #expect(ElevenLabsClient.keyterms(from: (0..<150).map { "terme\($0)" }).count == 100)
     }
 
-
+    @Test("Voxtral context keeps punctuation and long phrases, deduplicated and capped")
+    func contextBias() {
+        #expect(MistralClient.contextBias(from: ["Nogent sur Marne", " nogent sur marne "]) == ["Nogent sur Marne"])
+        #expect(MistralClient.contextBias(from: ["C'est-à-dire, un deux trois quatre cinq six"]).count == 1)
+        #expect(MistralClient.contextBias(from: ["", "  "]).isEmpty)
+        #expect(MistralClient.contextBias(from: (0..<150).map { "terme\($0)" }).count == 100)
+    }
 }
 
 /// The journal's counters are what make a day of dictation readable at a glance, so they

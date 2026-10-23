@@ -454,7 +454,7 @@ private struct GeneralTab: View {
             Section {
                 HelpRow(
                     "Guillemets droits",
-                    help: "Remplace « » et les guillemets courbes par des \". C'est la seule modification apportée au texte du moteur : décoché, il est collé tel quel"
+                    help: "Remplace « » et les guillemets courbes par des \", les apostrophes courbes par des '. C'est la seule modification apportée au texte du moteur : décoché, il est collé tel quel"
                 ) {
                     Toggle("", isOn: $settings.straightQuotes)
                         .labelsHidden()
@@ -578,7 +578,7 @@ private struct VocabularyTab: View {
         // needs a set height rather than its content's.
         .frame(height: 290)
         .onAppear {
-            hasAnyKey = Keychain.exists(Keychain.elevenLabs) || Keychain.exists(Keychain.microsoft)
+            hasAnyKey = Keychain.exists(Keychain.elevenLabs) || Keychain.exists(Keychain.mistral)
         }
     }
 
@@ -657,13 +657,9 @@ private struct KeysTab: View {
                     .labelsHidden()
                 }
                 KeyField(
-                    label: "Microsoft",
-                    help: """
-                    MAI-Transcribe-2 : environ une seconde pour une minute d'audio, garde davantage les hésitations
-
-                    Créez la ressource Azure Speech en North Europe.
-                    """,
-                    account: Keychain.microsoft,
+                    label: "Mistral",
+                    help: "Voxtral Small Transcribe 3 : moins d'une seconde jusqu'à 30 s d'audio, garde quelques hésitations",
+                    account: Keychain.mistral,
                     status: status
                 )
                 KeyField(

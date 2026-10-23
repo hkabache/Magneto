@@ -24,7 +24,7 @@ struct Usage: Codable, Equatable {
         "\(dictations) dictée\(dictations > 1 ? "s" : "") · \(Self.dollars(cost))"
     }
 
-    /// "8 min d'audio · ElevenLabs 0,03 $ · Microsoft 0,02 $", the engines that cost something.
+    /// "8 min d'audio · ElevenLabs 0,03 $ · Mistral 0,02 $", the engines that cost something.
     var detail: String {
         let minutes = Int((seconds / 60).rounded())
         let engines = Engine.allCases
