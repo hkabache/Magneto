@@ -1,12 +1,14 @@
 import CoreAudio
 import Foundation
 
-/// The default input device, reduced to the two things a dictation needs to know: how it
-/// is attached, which decides which capture path runs, and a label for the journal. The
-/// name is deliberately left out of both: the transport is what explains a failure, and a
-/// device name can carry someone's first name into a report meant to be pasted.
+/// The default input device, reduced to what a dictation needs to know: how it is
+/// attached, which decides which capture path runs, and which microphone it is, for the
+/// journal. The transport alone said "Bluetooth" for a pair of AirPods 5 and AirPods Pro 2
+/// alike, and a morning of degraded dictation could not be pinned on either. The name is
+/// the one the system shows, so it can carry its owner's first name, which the README says.
 struct InputDevice {
     let id: AudioDeviceID?
+    let name: String
     let transport: String
     let isBuiltIn: Bool
 
@@ -15,10 +17,11 @@ struct InputDevice {
     /// the fragile path in front of hardware nobody vouched for.
     static var current: InputDevice {
         guard let device = defaultInput, let transport = transportType(of: device) else {
-            return InputDevice(id: nil, transport: "indéterminée", isBuiltIn: false)
+            return InputDevice(id: nil, name: "inconnu", transport: "indéterminée", isBuiltIn: false)
         }
         return InputDevice(
             id: device,
+            name: name(of: device) ?? "sans nom",
             transport: label(for: transport),
             isBuiltIn: transport == kAudioDeviceTransportTypeBuiltIn
         )
@@ -49,6 +52,19 @@ struct InputDevice {
         var size = UInt32(MemoryLayout<UInt32>.size)
         let status = AudioObjectGetPropertyData(device, &address, 0, nil, &size, &transport)
         return status == noErr ? transport : nil
+    }
+
+    private static func name(of device: AudioDeviceID) -> String? {
+        var address = AudioObjectPropertyAddress(
+            mSelector: kAudioObjectPropertyName,
+            mScope: kAudioObjectPropertyScopeGlobal,
+            mElement: kAudioObjectPropertyElementMain
+        )
+        var name: Unmanaged<CFString>?
+        var size = UInt32(MemoryLayout<Unmanaged<CFString>?>.size)
+        let status = AudioObjectGetPropertyData(device, &address, 0, nil, &size, &name)
+        guard status == noErr, let name else { return nil }
+        return name.takeRetainedValue() as String
     }
 
     private static func label(for transport: UInt32) -> String {

@@ -52,6 +52,7 @@ final class ResilientCapture: Capture {
             switch CaptureHealth(
                 loudestSignal: state.loudestSignal,
                 idleMilliseconds: state.idleMilliseconds,
+                mutedMilliseconds: state.mutedMilliseconds,
                 elapsedMilliseconds: running.milliseconds
             ) {
             case .starting:
@@ -69,6 +70,8 @@ final class ResilientCapture: Capture {
                 )
             case .stalled:
                 rebuild(because: "flux interrompu depuis \(state.idleMilliseconds ?? 0) ms")
+            case .muted:
+                rebuild(because: "silence numérique depuis \(state.mutedMilliseconds ?? 0) ms")
             }
         }
         return CaptureState(level: min(1, state.signal * 4), status: status)
@@ -139,9 +142,13 @@ enum CaptureHealth {
     case silent
     /// Samples stopped arriving.
     case stalled
+    /// Samples carried sound, then kept arriving as digital silence: the headset moved its
+    /// microphone and left this stream running empty. Measured on AirPods 5, where it ate
+    /// the last 3.7 s of a 7 s dictation without a single error or missing buffer.
+    case muted
 
     /// A room's noise clears this by orders of magnitude, and digital silence never does.
-    private static let silenceFloor: Float = 1e-6
+    static let silenceFloor: Float = 1e-6
 
     /// A cold Bluetooth link was measured between 550 and 700 ms before its first sample,
     /// so the doubt is given twice that much room before the stream is called dead.
@@ -151,13 +158,20 @@ enum CaptureHealth {
     /// no plausible buffer size trips it, short enough to lose a word rather than a phrase.
     private static let stallMilliseconds = 800
 
-    init(loudestSignal: Float, idleMilliseconds: Int?, elapsedMilliseconds: Int) {
+    /// A pause in speech still carries the room, a headset's noise gate included: its
+    /// quietest 50 ms over a morning of AirPods dictation was 2e-6, never zero, so a full
+    /// second of zeros is a dead stream and not someone thinking.
+    private static let muteMilliseconds = 1_000
+
+    init(loudestSignal: Float, idleMilliseconds: Int?, mutedMilliseconds: Int?, elapsedMilliseconds: Int) {
         guard loudestSignal > Self.silenceFloor else {
             self = elapsedMilliseconds < Self.graceMilliseconds ? .starting : .silent
             return
         }
         if let idleMilliseconds, idleMilliseconds >= Self.stallMilliseconds {
             self = .stalled
+        } else if let mutedMilliseconds, mutedMilliseconds >= Self.muteMilliseconds {
+            self = .muted
         } else {
             self = .live
         }
@@ -337,6 +351,7 @@ private final class AudioSink {
         let signal: Float
         let loudestSignal: Float
         let idleMilliseconds: Int?
+        let mutedMilliseconds: Int?
         let buffers: Int
     }
 
@@ -347,6 +362,7 @@ private final class AudioSink {
     private var signal: Float = 0
     private var loudest: Float = 0
     private var sinceLastBuffer: Stopwatch?
+    private var sinceLastSound: Stopwatch?
     private var buffers = 0
     private var dropped = 0
 
@@ -370,6 +386,9 @@ private final class AudioSink {
         signal = strength
         loudest = max(loudest, strength)
         sinceLastBuffer = Stopwatch()
+        if strength > CaptureHealth.silenceFloor {
+            sinceLastSound = Stopwatch()
+        }
         buffers += 1
         guard let converted = convert(buffer, to: file.processingFormat) else {
             dropped += 1
@@ -389,6 +408,7 @@ private final class AudioSink {
             signal: signal,
             loudestSignal: loudest,
             idleMilliseconds: sinceLastBuffer?.milliseconds,
+            mutedMilliseconds: sinceLastSound?.milliseconds,
             buffers: buffers
         )
     }
@@ -399,6 +419,7 @@ private final class AudioSink {
         signal = 0
         loudest = 0
         sinceLastBuffer = nil
+        sinceLastSound = nil
         buffers = 0
     }
 

@@ -72,8 +72,8 @@ corrigé devient un cas pour ne pas revenir.
 | D-08 | | Dicter environ une minute | Texte complet, sans coupure au milieu |
 | D-09 | | Dicter dans une autre app (Notes, un champ web) | Collé au curseur pareil |
 | D-12 | | Popover ouvert, « Dicter », parler, « Arrêter » dans le popover | Le texte n'est collé nulle part, le popover ayant le focus ; « Copier » le récupère |
-| D-10 | **Vous** | Dicter avec des AirPods connectés | L'enregistrement démarre en quelques secondes, texte correct |
-| D-11 | **Vous** | Débrancher ou couper le micro externe pendant une dictée | La dictée continue ou se termine proprement, jamais un blocage en « Enregistrement… » |
+| D-10 | **Vous** | Dicter avec des AirPods connectés | L'enregistrement démarre en quelques secondes, texte correct ; le journal système nomme le micro (« micro « AirPods … » (Bluetooth) ») |
+| D-11 | **Vous** | Débrancher ou couper le micro externe pendant une dictée, ou ranger dans son boîtier l'écouteur qui porte le micro | La dictée continue ou se termine proprement, jamais un blocage en « Enregistrement… » ; un flux qui ne livre plus que du silence numérique est relancé (« relance … silence numérique » dans le journal système) au lieu de couper la fin |
 
 ### Moteurs et clés
 

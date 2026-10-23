@@ -89,7 +89,7 @@ Scribe rend le texte le plus propre, sans hésitations, mais ralentit avec la lo
 
 ## Signaler un problème
 
-Magneto écrit au fil de l'eau dans le journal système de macOS : le moteur qui a répondu, la raison de chaque repli, les durées, la latence d'ouverture du micro et ses éventuelles relances. Rien n'en sort tout seul, et il ne contient ni le texte dicté, ni le vocabulaire, ni les clés.
+Magneto écrit au fil de l'eau dans le journal système de macOS : le moteur qui a répondu, la raison de chaque repli, les durées, le micro utilisé, la latence de son ouverture et ses éventuelles relances. Rien n'en sort tout seul, et il ne contient ni le texte dicté, ni le vocabulaire, ni les clés. Le micro y figure sous le nom que lui donne macOS, qui contient souvent votre prénom (« AirPods de … ») : relisez avant de coller un extrait quelque part.
 
 ```bash
 log show --predicate 'subsystem == "com.hkabache.magneto"' --last 1d --style compact

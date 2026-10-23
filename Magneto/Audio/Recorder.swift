@@ -40,7 +40,7 @@ final class Recorder: ObservableObject {
         // Logged before the capture exists rather than after: opening a Bluetooth input
         // takes seconds, and the journal has to show where those seconds went.
         Log.pipeline.notice(
-            "entrée \(device.transport, privacy: .public) : capture \(device.isBuiltIn ? "simple" : "résiliente", privacy: .public)"
+            "micro « \(device.name, privacy: .public) » (\(device.transport, privacy: .public)) : capture \(device.isBuiltIn ? "simple" : "résiliente", privacy: .public)"
         )
         let capture: Capture
         do {
