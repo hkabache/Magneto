@@ -137,13 +137,14 @@ for Debug would break the signature TCC pins its grants to.
 - There is no LLM cleanup pass, and adding one back needs evidence. The one that existed changed 10 words
   out of 1053 over a full day of real dictation, nine of them a trailing full stop, for a second of latency
   every time: Scribe's `no_verbatim` already does that work inside the transcription call. Removed in
-  c4c047e's successor; the code is in history if a measurement ever justifies it.
+  a513b68's successor; the code is in history if a measurement ever justifies it.
 - Nothing rewrites the engine's text except `QuotePass`, and adding a rule back needs a count first. Nine
   once existed for Voxtral's verbatim output; measured on 1981 words from Scribe and 1512 from the local
   model they fired zero times, and two damaged a correct text: one stripped the space French wants before
   `?` `!` `;` `:`, which Scribe writes 15 times in 45 dictations, the other forced casing on the fragments
   Scribe deliberately leaves lowercase for someone patching the middle of a sentence.
-- Conventional commits (feat:/fix:/docs:/refactor:/chore:), French commit messages. A commit that
+- Conventional commits (feat:/fix:/docs:/refactor:/chore:), French commit messages: one subject line, no body
+  listing the changes. A commit that
   changes nothing on the Mac carries the `(ios)` scope, `feat(ios): …`.
 - Release notes are the `## <version>` section of `CHANGELOG.md`, published as is in Sparkle's update
   window and on the GitHub release. Write it in the version bump commit, before the tag: full sentences,
@@ -162,6 +163,16 @@ for Debug would break the signature TCC pins its grants to.
   which hosts are contacted and when, so anything that widens that has to be reflected there in the same
   change.
 
+## Design system
+
+Magneto and Mystique share one design system, « Apps de barre des menus macOS », kept in Claude Design:
+https://claude.ai/artifact/DznETXHUjxHPv2LbevqQ4d. Its `project/README.md` is the brand book (tone, tokens,
+popover and panel composition, help bubbles, SF Symbols), and `components/` describes the shared controls.
+- Read it before changing either app's interface, and follow it.
+- Nothing syncs it with the code. When a change alters something it describes, update it in the same piece of
+  work, or offer to at the end. Change only what moved, starting from the version online, never an older copy,
+  so edits made in Claude Design survive.
+
 ## Claude Code plugin
 
 `.claude/skills/Magneto/` is a Claude Code plugin, named after the app so that its status line and notices carry
@@ -170,7 +181,8 @@ that name. It loads at the start of a session opened in this repository.
 Guardrails (`hooks/guardrails.ts`, `rules.ts`) enforce some rules of this file when a tool is called, instead of
 trusting them to be remembered.
 - Refused: an `xcodebuild` whose `-derivedDataPath` is relative (inside the repo); a `git commit` or `git push`
-  when the latest user message does not ask for one; a `git tag v*` or its push while `project.yml`'s
+  when the latest user message neither asks for one nor plainly agrees to one Claude's previous answer proposed
+  (a question about it, or the git command laid out); a `git tag v*` or its push while `project.yml`'s
   `MARKETING_VERSION`, the `## <version>` section of `CHANGELOG.md` or a run of that version in the
   « Passages » table of `docs/RECETTE.md` is missing.
 - Reported, not refused: an edit adding `try!`, a force-unwrap or `AVAudioEngine` to a Swift file outside the tests.

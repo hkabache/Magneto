@@ -39,23 +39,33 @@ export function isCommitOrPush(command: string): boolean {
   })
 }
 
-// The words of a request that allow a commit or a push, dictated or typed.
+// The words of a request that allow a commit or a push, dictated or typed. Asking
+// for a new version asks for its bump commit and tag, whatever verb carries it.
 export function asksForCommit(prompt: string): boolean {
   return /\b(commit\w*|committ\w*|push\w*|pousse[rsz]?|publie[rsz]?|tag\w*)\b/i.test(prompt)
+    || /\b(cr[ée]+\w*|fais|faire|sors|sortir|lance[rsz]?)\s+(une\s+|la\s+)?(nouvelle\s+)?version\b/i.test(prompt)
 }
 
-// An answer that offers a commit, a push or a tag and ends on a question,
-// unlike one that only reports that nothing was committed.
+// An answer that offers a commit, a push or a tag: it ends on a question, or it
+// lays out the git commands to run, unlike one that only reports that nothing
+// was committed.
 export function proposesCommit(answer: string): boolean {
-  return asksForCommit(answer) && /\?[\s*_»"')]*$/.test(answer.trim())
+  if (!asksForCommit(answer)) return false
+  return /\?[\s*_»"')]*$/.test(answer.trim()) || /```[^`]*\bgit\s+(commit|push)\b[^`]*```/.test(answer)
 }
 
-// A short agreement with no reservation: « oui va y », « ok », « go ». It
-// allows a commit when Claude's previous answer proposed one.
+// An agreement with no reservation: « oui va y », « ok », « go ». It allows a
+// commit when Claude's previous answer proposed one. A short one needs no more;
+// a longer one must also say to go ahead, since « ok » can open a new request.
+// A bare « pas » can narrow the scope (« occupe-toi pas de Magneto ») without
+// holding the commit back, so only « pas » about timing or git counts against it.
 export function isAgreement(prompt: string): boolean {
   const text = prompt.trim()
-  if (text.length > 80 || /\b(non|pas|attends?|stop|sauf)\b/i.test(text)) return false
-  return /^(oui|ouais|ok|okay|d'accord|dac|vas?[- ]?y|go|yes|yep|parfait|c'est bon|valid[eé]|je valide|fais[- ]le|lance)\b/i.test(text)
+  if (text.length > 400) return false
+  if (/\b(non|mais|attends?|stop|sauf)\b|\bpas (encore|tout de suite|maintenant)\b/i.test(text)) return false
+  if (/\b(pas|ne)\b[^.,]{0,20}\b(commit\w*|push\w*|pousse\w*)/i.test(text)) return false
+  if (!/^(oui|ouais|ok|okay|d'accord|dac|vas?[- ]?y|go|yes|yep|parfait|c'est bon|valid[eé]|je valide|j'accepte|je veux bien|fais[- ]le|lance|tu peux y aller)\b/i.test(text)) return false
+  return text.length <= 80 || /\b(je veux bien|vas?[- ]?y|fais|lance|tu peux|go)\b/i.test(text)
 }
 
 export type ReleaseFiles = { projectYml: string; changelog: string; recette?: string }

@@ -58,6 +58,11 @@ test('a dictated request for a commit counts', () => {
   expect(asksForCommit('Tu peux committer et pousser ?')).toBe(true)
   expect(asksForCommit('commit ça')).toBe(true)
   expect(asksForCommit('Regarde le bug du collage')).toBe(false)
+  // The false refusal met in Magneto: the commit asked one message earlier, then this.
+  expect(asksForCommit('puis créé une nouvelle version')).toBe(true)
+  expect(asksForCommit('Tu peux sortir la version ?')).toBe(true)
+  expect(asksForCommit("Ça fait plusieurs semaines que j'utilise la dernière version")).toBe(false)
+  expect(asksForCommit('La nouvelle version de Scribe est plus lente')).toBe(false)
 })
 
 test('the git directory is read from cd or -C', () => {
@@ -106,10 +111,24 @@ test('a plain agreement counts, a reserved one does not', () => {
   expect(isAgreement('oui mais attends, pas tout de suite')).toBe(false)
   expect(isAgreement('non')).toBe(false)
   expect(isAgreement('Regarde plutôt le bug du collage')).toBe(false)
+  // The false refusals met while rewriting Magneto's history, to a plan that listed the pushes.
+  expect(isAgreement('Je valide totalement ce plan. Tu peux y aller.')).toBe(true)
+  expect(isAgreement("J'accepte explicitement")).toBe(true)
+  expect(isAgreement('Tu peux y aller')).toBe(true)
+  // The false refusal met in Mystique when switching the author to the GitHub noreply address.
+  expect(isAgreement(
+    "oui, je veux bien que du coup pour Mystic dans un premier temps, tu fasses la bascule sur le nouveau compte. " +
+    "Effectivement, ça c'est mon ancien compte. occupe-toi pas de Magneto, je vais le faire de mon côté.",
+  )).toBe(true)
+  expect(isAgreement('oui, mais ne commite pas encore')).toBe(false)
+  expect(isAgreement('ok, ne pousse pas, regarde plutôt le bug du collage')).toBe(false)
+  expect(isAgreement('ok, maintenant regarde plutôt le bug du collage dans TextEdit, il revient à chaque fois')).toBe(false)
 })
 
 test('only an answer asking about a commit proposes one', () => {
   expect(proposesCommit('Ensuite : commits, recette, tag v0.4.3.\n\nJe pars sur 0.4.3 et je lance la recette ?')).toBe(true)
   expect(proposesCommit("Rien n'est commité ; dis-moi quand tu veux.")).toBe(false)
   expect(proposesCommit('Tu préfères fusionner ou garder deux plugins ?')).toBe(false)
+  expect(proposesCommit('Les commandes, dans l\'ordre :\n\n```bash\ngit push --force origin main\n```\n\nLes releases restent rattachées.')).toBe(true)
+  expect(proposesCommit('Rien n\'est poussé.\n\n```bash\ngh run list\n```')).toBe(false)
 })
