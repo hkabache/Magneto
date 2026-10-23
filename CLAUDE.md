@@ -99,7 +99,7 @@ runtime `.accessory` was tried and changed nothing: the Release build keeps the 
 ```
 project.yml                        XcodeGen spec (source of truth for build settings)
 CHANGELOG.md                       release notes, one section per version, shown by Sparkle
-.claude/skills/Magneto/            Claude Code plugin: guardrails and status line (see Claude Code plugin)
+.claude/skills/Magneto/            Claude Code plugin: status line (see Claude Code plugin)
 Shared/                            compiled into every target, no AppKit or UIKit inside
   Transcription/                   TranscriptionClient protocol + chain and race + 3 clients
   PostProcessing/QuotePass.swift   straightens quotation marks and apostrophes, and nothing else
@@ -178,17 +178,6 @@ popover and panel composition, help bubbles, SF Symbols), and `components/` desc
 `.claude/skills/Magneto/` is a Claude Code plugin, named after the app so that its status line and notices carry
 that name. It loads at the start of a session opened in this repository.
 
-Guardrails (`hooks/guardrails.ts`, `rules.ts`) enforce some rules of this file when a tool is called, instead of
-trusting them to be remembered.
-- Refused: an `xcodebuild` whose `-derivedDataPath` is relative (inside the repo); a `git commit` or `git push`
-  when the latest user message neither asks for one nor plainly agrees to one Claude's previous answer proposed
-  (a question about it, or the git command laid out); a `git tag v*` or its push while `project.yml`'s
-  `MARKETING_VERSION`, the `## <version>` section of `CHANGELOG.md` or a run of that version in the
-  « Passages » table of `docs/RECETTE.md` is missing.
-- Reported, not refused: an edit adding `try!`, a force-unwrap or `AVAudioEngine` to a Swift file outside the tests.
-- They read only what a command runs (`shell.ts`): quoted text and heredoc bodies are data. A refusal that is
-  wrong is a bug in the rule: say so, and fix the rule with a test for that command. Never route around it.
-
 The status line (`hooks/build-status.ts`, `status.ts`) reads `Build ✓ · Tests ✓ (N) · Installé ✓ · Signature ✓`.
 - The build comes from the output of the xcodebuild, `install.sh` and `dev.sh` calls Claude runs, the tests from
   the result bundle a run writes under its `-derivedDataPath`, so a test command names one; both are kept per
@@ -200,7 +189,7 @@ The status line (`hooks/build-status.ts`, `status.ts`) reads `Build ✓ · Tests
 Check the plugin after every change: `tsc -p .claude/skills/Magneto`, then `claude plugin validate` and
 `claude plugin test` on the same folder. `tsc` needs the types the engine writes into `.claude-plugin/types/`
 when it loads the plugin (gitignored). Mystique's `.claude/skills/Mystique/` is the same plugin under its own
-name: a change to a shared rule goes to both, a rule specific to Magneto stays here.
+name: a change to one goes to the other.
 
 ## iPhone
 
